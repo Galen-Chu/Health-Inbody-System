@@ -7,20 +7,42 @@ const GROUP_LABELS = {
   vegetables: '蔬菜', fruits: '水果', oils: '油脂堅果',
 }
 
+function Progress({ label, value, target, unit }) {
+  const pct = Math.min(Math.round((value / target) * 100), 150)
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+        <span>{label}</span>
+        <span>{Math.round(value)} / {Math.round(target)} {unit}（{pct}%）</span>
+      </div>
+      <div style={{ background: '#eef1f4', borderRadius: 6, height: 12 }}>
+        <div style={{
+          width: `${Math.min(pct, 100)}%`, height: 12, borderRadius: 6,
+          background: pct > 110 ? '#d29922' : pct < 60 ? '#d1242f' : '#2da44e',
+        }} />
+      </div>
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const [metrics, setMetrics] = useState(null)
-  const [today, setToday] = useState(null)
+  const [summary, setSummary] = useState(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    Promise.all([api.getMetrics(), api.getRecords()])
-      .then(([m, records]) => {
+    const todayStr = new Date().toISOString().slice(0, 10)
+    Promise.all([api.getMetrics(), api.getRecords(), api.getSummary(todayStr)])
+      .then(([m, records, s]) => {
         setMetrics(m)
-        const todayStr = new Date().toISOString().slice(0, 10)
-        setToday(records.find((r) => r.record_date === todayStr) || null)
+        setSummary(s)
+        const today = records.find((r) => r.record_date === todayStr) || null
+        setHexIntake(today?.servings || {})
       })
       .catch((e) => setError(String(e)))
   }, [])
+
+  const [hexIntake, setHexIntake] = useState({})
 
   if (error) return <p>⚠ 無法連上後端（請確認 uvicorn 已啟動）：{error}</p>
   if (!metrics) return <p>載入中…</p>
@@ -42,10 +64,24 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
-      <h2>六大類達成率（{today ? today.record_date : '今日尚無記錄'}）</h2>
+
+      <h2>今日攝取 vs 目標</h2>
+      {summary && (
+        <div style={{ maxWidth: 520, marginBottom: 24 }}>
+          <Progress label="熱量" value={summary.calories_total} target={summary.calorie_target} unit="kcal" />
+          <Progress label="水分（飲水＋食物）"
+            value={summary.water_drink_ml + summary.water_from_food_ml}
+            target={metrics.water_target_ml} unit="ml" />
+          <p style={{ fontSize: 13, color: '#57606a' }}>
+            巨量營養：蛋白質 {summary.macros.protein_g}g · 碳水 {summary.macros.carb_g}g · 脂質 {summary.macros.fat_g}g
+          </p>
+        </div>
+      )}
+
+      <h2>六大類達成率</h2>
       <HexagonChart
         targets={metrics.six_groups.servings}
-        intake={today?.servings || {}}
+        intake={hexIntake}
         labels={GROUP_LABELS}
       />
       <p style={{ color: '#57606a', fontSize: 13 }}>

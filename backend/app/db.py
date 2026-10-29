@@ -23,4 +23,5 @@ def get_db():
 
 def init_db() -> None:
     import app.models  # noqa: F401 — register tables
+    import app.models_food  # noqa: F401
     Base.metadata.create_all(engine)

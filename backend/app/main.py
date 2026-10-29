@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.db import init_db
 from app.routers.api import FRONTEND_DIST, router
+from app.routers.foods import router as foods_router
 
 app = FastAPI(title="Health-Inbody-System", version="0.1.0")
 
@@ -18,11 +19,16 @@ app.add_middleware(CORSMiddleware, allow_origins=[
     allow_methods=["*"], allow_headers=["*"])
 
 app.include_router(router)
+app.include_router(foods_router)
 
 
 @app.on_event("startup")
 def startup():
     init_db()
+    from app.seed import seed_foods_if_empty
+    seeded = seed_foods_if_empty()
+    if seeded:
+        print(f" seeded {seeded} foods from data/foods_full.csv")
 
 
 @app.get("/api/health")

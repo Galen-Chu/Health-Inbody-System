@@ -19,9 +19,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.db import engine  # noqa: E402
 
-COLUMNS = ["name", "category", "calories_kcal_per_100g",
-           "water_g_per_100g", "protein_g", "carb_g", "fat_g"]
-VALID_CATEGORIES = {"grains", "protein", "dairy", "vegetables", "fruits", "oils"}
+COLUMNS = ["source_id", "name", "category", "category_zh",
+           "calories_kcal_per_100g", "water_g_per_100g",
+           "protein_g", "carb_g", "fat_g"]
+VALID_CATEGORIES = {"grains", "protein", "dairy", "vegetables",
+                    "fruits", "oils", "other"}
 
 
 def import_csv(csv_path: Path) -> int:
@@ -38,8 +40,10 @@ def import_csv(csv_path: Path) -> int:
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS foods (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_id TEXT,
                 name TEXT NOT NULL,
                 category TEXT NOT NULL,
+                category_zh TEXT,
                 calories_kcal_per_100g REAL NOT NULL,
                 water_g_per_100g REAL DEFAULT 0,
                 protein_g REAL DEFAULT 0,
@@ -48,11 +52,13 @@ def import_csv(csv_path: Path) -> int:
             )"""))
         conn.execute(text("DELETE FROM foods"))
         conn.execute(text("""
-            INSERT INTO foods (name, category, calories_kcal_per_100g,
-                               water_g_per_100g, protein_g, carb_g, fat_g)
-            VALUES (:name, :category, :calories_kcal_per_100g,
-                    :water_g_per_100g, :protein_g, :carb_g, :fat_g)"""),
-            df[COLUMNS].to_dict("records"))
+            INSERT INTO foods (source_id, name, category, category_zh,
+                               calories_kcal_per_100g, water_g_per_100g,
+                               protein_g, carb_g, fat_g)
+            VALUES (:source_id, :name, :category, :category_zh,
+                    :calories_kcal_per_100g, :water_g_per_100g,
+                    :protein_g, :carb_g, :fat_g)"""),
+            df[COLUMNS].astype(object).where(df[COLUMNS].notna(), None).to_dict("records"))
     return len(df)
 
 

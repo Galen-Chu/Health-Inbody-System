@@ -25,7 +25,7 @@ frontend (React + Vite)          backend (FastAPI + SQLAlchemy)
 
 - **引擎與介面分離**：`backend/app/engine/` 是純 Python 函式＋pytest 單元測試（數值基準來自原專案公式手算）
 - **本機先行、預留上雲**：預設 SQLite＋uvicorn；`Dockerfile` 多階段建置（前端 dist 由後端直接 serve，單容器即可部署）
-- **食物資料**：`backend/data/foods_sample.csv` 為樣本；完整資料庫待 M2 從[食藥署食品營養成分資料庫](https://consumer.fda.gov.tw/Food/TFND.aspx)匯入
+- **食物資料**：`backend/data/foods_full.csv`（2,085 項，食藥署開放資料轉製）隨 repo 附上，首次啟動自動載入；重製流程：`scripts/transform_fda_csv.py`（原始長格式→schema）→ `scripts/import_foods.py`
 
 ## 🚀 Quick Start · 快速開始
 
@@ -55,7 +55,7 @@ CI（`.github/workflows/ci.yml`）每次 push/PR 跑後端 pytest ＋前端 `npm
 
 - [x] **M1 引擎層**：BMR/TDEE/六大類/水分公式＋23 項測試
 - [x] **M2a 骨架**：FastAPI CRUD＋SQLite＋React 前端三頁＋六邊形圖
-- [ ] **M2b 食物資料庫**：食藥署完整資料 CSV 匯入＋搜尋 API＋熱量自動加總
+- [x] **M2b 食物資料庫**：食藥署 2,085 項食物（[政府開放資料](https://scidm.nchc.org.tw/dataset/best_wish8543)長格式→schema 樞紐，19 分類→六大類+其他）、搜尋 API、餐點記錄×公克自動換算熱量/巨量營養、每日彙總 vs 目標、首次啟動自動 seed
 - [ ] **M3 趨勢可視化**：體重/體脂/肌肉量趨勢圖（接圖表庫）
 - [ ] **M4 建議引擎**：TDEE 差額 × 六大類達成率的規則建議（預留 ML：預測適合的食物種類——原專題簡報 p21 的願景）
 
