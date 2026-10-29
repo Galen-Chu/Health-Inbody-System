@@ -2,6 +2,10 @@
 
 > 目標：把 Health-Inbody-System 部署到雲端，開始實機日常使用。
 > 本文件是 M5 的決策與執行清單——部署前逐項確認。
+>
+> **狀態（2026-10-29）**：三項決策**待決並凍結**，追蹤於
+> [Issue #1](https://github.com/Galen-Chu/Health-Inbody-System/issues/1)；
+> M5 啟動時從該 issue 勾選起手，本文件即為執行手冊。
 
 ## 現況（已就緒）
 
