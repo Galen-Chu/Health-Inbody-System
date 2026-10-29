@@ -48,3 +48,20 @@ def test_record_upsert_same_day():
         assert resp.status_code == 200
     resp = client.get(f"/api/records/{day}")
     assert resp.json()["servings"] == {"grains": 3, "protein": 1}
+
+
+def test_body_metrics_roundtrip():
+    for day, weight, bfp, muscle in [("2026-10-01", 71.5, 21.0, 30.2),
+                                     ("2026-10-15", 70.8, 20.4, 30.5)]:
+        resp = client.post("/api/body-metrics", json={
+            "measured_on": day, "weight_kg": weight,
+            "body_fat_pct": bfp, "muscle_mass_kg": muscle})
+        assert resp.status_code == 200
+        assert resp.json()["weight_kg"] == weight
+
+    resp = client.get("/api/body-metrics")
+    assert resp.status_code == 200
+    items = resp.json()
+    assert len(items) >= 2
+    # API 依日期新→舊排序
+    assert items[0]["measured_on"] >= items[-1]["measured_on"]
