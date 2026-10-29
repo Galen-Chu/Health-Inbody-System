@@ -28,15 +28,18 @@ function Progress({ label, value, target, unit }) {
 export default function Dashboard() {
   const [metrics, setMetrics] = useState(null)
   const [summary, setSummary] = useState(null)
+  const [recs, setRecs] = useState([])
   const [error, setError] = useState('')
 
   useEffect(() => {
     const todayStr = new Date().toISOString().slice(0, 10)
-    Promise.all([api.getMetrics(), api.getRecords(), api.getSummary(todayStr)])
-      .then(([m, records, s]) => {
+    Promise.all([api.getMetrics(), api.getRecords(), api.getSummary(todayStr),
+                 api.getRecommendations(todayStr)])
+      .then(([m, records, s, r]) => {
         setMetrics(m)
         setSummary(s)
-        const today = records.find((r) => r.record_date === todayStr) || null
+        setRecs(r.recommendations || [])
+        const today = records.find((r2) => r2.record_date === todayStr) || null
         setHexIntake(today?.servings || {})
       })
       .catch((e) => setError(String(e)))
@@ -77,6 +80,25 @@ export default function Dashboard() {
           </p>
         </div>
       )}
+
+      <h2>今日建議 Recommendations</h2>
+      {recs.length > 0 ? (
+        <ul style={{ listStyle: 'none', padding: 0, maxWidth: 620, marginBottom: 24 }}>
+          {recs.map((r, i) => (
+            <li key={i} style={{
+              display: 'flex', gap: 10, alignItems: 'flex-start',
+              border: '1px solid #e1e0d9', borderRadius: 8, padding: 12, marginBottom: 8,
+              background: r.level === 'positive' ? '#f0fdf4' : 'inherit',
+            }}>
+              <span aria-hidden>{r.level === 'warning' ? '⚠️' : r.level === 'positive' ? '✅' : '💡'}</span>
+              <div>
+                <div style={{ fontSize: 14 }}>{r.zh}</div>
+                <div style={{ fontSize: 12, color: '#57606a' }}>{r.en}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : <p style={{ color: '#57606a' }}>尚無建議（請先記錄今日飲食）。</p>}
 
       <h2>六大類達成率</h2>
       <HexagonChart

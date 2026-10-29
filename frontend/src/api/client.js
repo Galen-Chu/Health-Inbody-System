@@ -24,4 +24,5 @@ export const api = {
   listMeals: (day) => request(`/meals?day=${day}`),
   deleteMeal: (id) => request(`/meals/${id}`, { method: 'DELETE' }),
   getSummary: (day) => request(`/summary/${day}`),
+  getRecommendations: (day) => request(`/recommendations/${day}`),
 }

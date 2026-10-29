@@ -57,7 +57,7 @@ CI（`.github/workflows/ci.yml`）每次 push/PR 跑後端 pytest ＋前端 `npm
 - [x] **M2a 骨架**：FastAPI CRUD＋SQLite＋React 前端三頁＋六邊形圖
 - [x] **M2b 食物資料庫**：食藥署 2,085 項食物（[政府開放資料](https://scidm.nchc.org.tw/dataset/best_wish8543)長格式→schema 樞紐，19 分類→六大類+其他）、搜尋 API、餐點記錄×公克自動換算熱量/巨量營養、每日彙總 vs 目標、首次啟動自動 seed
 - [ ] **M3 趨勢可視化**：體重/體脂/肌肉量趨勢圖（接圖表庫）
-- [ ] **M4 建議引擎**：TDEE 差額 × 六大類達成率的規則建議（預留 ML：預測適合的食物種類——原專題簡報 p21 的願景）
+- [x] **M4 建議引擎**：規則建議（熱量平衡/水分缺口/蛋白質下限 1.0g/kg/六大類缺口前兩名/全達標正向回饋，雙語）——`/api/recommendations/{日}`；ML 食物預測未來走同一介面（原專題簡報 p21 的願景）
 
 ## 📄 Sources · 資料來源
 

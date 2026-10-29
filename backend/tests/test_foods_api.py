@@ -66,3 +66,20 @@ def test_meal_unknown_food_404():
     resp = client.post("/api/meals", json={
         "record_date": "2026-10-29", "food_id": 999999, "grams": 100})
     assert resp.status_code == 404
+
+
+def test_recommendations_endpoint():
+    day = "2026-10-30"
+    chicken = _first_food("去皮雞胸肉")
+    client.post("/api/meals", json={
+        "record_date": day, "food_id": chicken["id"], "grams": 150})
+    client.post("/api/records", json={
+        "record_date": day, "servings": {}, "water_ml": 400})
+    resp = client.get(f"/api/recommendations/{day}")
+    assert resp.status_code == 200
+    recs = resp.json()["recommendations"]
+    assert len(recs) >= 1
+    for r in recs:
+        assert r["en"] and r["zh"] and r["level"] in {"info", "warning", "positive"}
+    # 蔬菜缺口應被提出（當日只吃雞胸肉）
+    assert any(r["type"].startswith("group:") for r in recs)

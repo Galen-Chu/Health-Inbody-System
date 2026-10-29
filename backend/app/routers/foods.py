@@ -130,9 +130,8 @@ def list_meals(day: date, db: Session = Depends(get_db)):
                            .order_by(MealEntry.id)))
 
 
-@router.get("/summary/{day}", response_model=DaySummary)
-def day_summary(day: date, db: Session = Depends(get_db)):
-    """當日總覽：餐點熱量/巨量營養/食物水分 vs 目標."""
+def _day_context(db: Session, day: date):
+    """summary / recommendations 共用：當日餐點、記錄、個人檔與熱量目標."""
     entries = list(db.scalars(select(MealEntry)
                               .where(MealEntry.record_date == day)
                               .order_by(MealEntry.id)))
@@ -146,6 +145,13 @@ def day_summary(day: date, db: Session = Depends(get_db)):
 
     from app.models import DailyRecord
     record = db.scalar(select(DailyRecord).where(DailyRecord.record_date == day))
+    return entries, record, profile, target
+
+
+@router.get("/summary/{day}", response_model=DaySummary)
+def day_summary(day: date, db: Session = Depends(get_db)):
+    """當日總覽：餐點熱量/巨量營養/食物水分 vs 目標."""
+    entries, record, profile, target = _day_context(db, day)
 
     return DaySummary(
         date=day,
@@ -160,3 +166,28 @@ def day_summary(day: date, db: Session = Depends(get_db)):
         },
         meals=entries,
     )
+
+
+@router.get("/recommendations/{day}")
+def recommendations(day: date, db: Session = Depends(get_db)):
+    """當日規則建議（M4 v1；ML 食物預測未來走同一介面）."""
+    from app.engine import recommender, six_groups
+
+    entries, record, profile, target = _day_context(db, day)
+    calories = sum(e.calories_kcal for e in entries)
+    water_food = sum(e.water_g for e in entries)
+    water_total = water_food + (record.water_ml if record else 0)
+    macros_protein = sum(e.protein_g for e in entries)
+    intake = (record.servings if record else {}) or {}
+
+    recs = recommender.generate_recommendations(
+        calories_total=calories,
+        calorie_target=target,
+        water_total_ml=water_total,
+        water_target_ml=profile.weight_kg * 35,
+        six_group_intake=intake,
+        six_group_targets=six_groups.daily_targets(target)["servings"],
+        protein_g=macros_protein,
+        weight_kg=profile.weight_kg,
+    )
+    return {"date": day, "recommendations": recs}
