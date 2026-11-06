@@ -1,14 +1,15 @@
 // 小倍數趨勢線圖 —— 依 dataviz 規格：2px 線、髮絲網格、端點標值、
 // 十字線 tooltip、單系列免圖例（標題即系列名）
+// forecast（可選）：虛線外推段（Holt），空心端點
 import { useState } from 'react'
 
 const W = 340, H = 210, M = { top: 14, right: 46, bottom: 26, left: 44 }
 const INK = '#0b0b0b', INK2 = '#52514e', MUTED = '#898781',
       GRID = '#e1e0d9', BASE = '#c3c2b7', SURFACE = '#ffffff'
 
-export default function TrendChart({ title, unit, data = [], color }) {
-  // data: 依時間升序 [{date: 'YYYY-MM-DD', value: number}]
-  const [hover, setHover] = useState(null)   // index or null
+export default function TrendChart({ title, unit, data = [], color, forecast = null }) {
+  // data: 依時間升序 [{date, value}]；forecast: 同格式（外推段）
+  const [hover, setHover] = useState(null)
 
   if (data.length === 0) {
     return (
@@ -21,8 +22,9 @@ export default function TrendChart({ title, unit, data = [], color }) {
     )
   }
 
-  const xs = data.map((d) => new Date(d.date).getTime())
-  const ys = data.map((d) => d.value)
+  const all = forecast ? [...data, ...forecast] : data
+  const xs = all.map((d) => new Date(d.date).getTime())
+  const ys = all.map((d) => d.value)
   const x0 = Math.min(...xs), x1 = Math.max(...xs)
   const yMin = Math.min(...ys), yMax = Math.max(...ys)
   // 30% 緩衝：健康趨勢線貼邊會誇大變化幅度，寧可留白
@@ -35,17 +37,23 @@ export default function TrendChart({ title, unit, data = [], color }) {
   const ticks = [0, 1, 2].map((i) => lo + (hi - lo) * (i + 0.5) / 3)
 
   const linePath = data.map((d, i) =>
-    `${i === 0 ? 'M' : 'L'}${px(xs[i]).toFixed(1)},${py(d.value).toFixed(1)}`).join(' ')
-  const areaPath = `${linePath} L${px(xs[xs.length - 1]).toFixed(1)},${H - M.bottom} L${px(xs[0]).toFixed(1)},${H - M.bottom} Z`
+    `${i === 0 ? 'M' : 'L'}${px(new Date(d.date).getTime()).toFixed(1)},${py(d.value).toFixed(1)}`).join(' ')
+  const areaPath = `${linePath} L${px(new Date(data[data.length - 1].date).getTime()).toFixed(1)},${H - M.bottom} L${px(new Date(data[0].date).getTime()).toFixed(1)},${H - M.bottom} Z`
+  const forecastPath = forecast && forecast.length
+    ? 'M' + px(new Date(data[data.length - 1].date).getTime()).toFixed(1) + ',' +
+      py(data[data.length - 1].value).toFixed(1) + ' ' +
+      forecast.map((d) => `L${px(new Date(d.date).getTime()).toFixed(1)},${py(d.value).toFixed(1)}`).join(' ')
+    : null
 
   const last = data[data.length - 1]
   const fmt = (v) => Number.isInteger(v) ? v : v.toFixed(1)
+  const histXs = data.map((d) => new Date(d.date).getTime())
 
   const onMove = (e) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const x = (e.clientX - rect.left) * (W / rect.width)
     let nearest = 0, best = Infinity
-    xs.forEach((t, i) => {
+    histXs.forEach((t, i) => {
       const d2 = Math.abs(px(t) - x)
       if (d2 < best) { best = d2; nearest = i }
     })
@@ -70,7 +78,9 @@ export default function TrendChart({ title, unit, data = [], color }) {
         ))}
         {/* X 軸首/中/尾日期 */}
         <text x={M.left} y={H - 8} fontSize="10" fill={MUTED}>{data[0].date.slice(5)}</text>
-        <text x={W - M.right} y={H - 8} fontSize="10" fill={MUTED} textAnchor="end">{last.date.slice(5)}</text>
+        <text x={W - M.right} y={H - 8} fontSize="10" fill={MUTED} textAnchor="end">
+          {(forecast ? forecast[forecast.length - 1] : last).date.slice(5)}
+        </text>
         {data.length > 2 && (() => {
           const mid = data[Math.floor((data.length - 1) / 2)]
           const midX = px(new Date(mid.date).getTime())
@@ -82,19 +92,34 @@ export default function TrendChart({ title, unit, data = [], color }) {
         <path d={areaPath} fill={color} opacity="0.1" />
         <path d={linePath} fill="none" stroke={color} strokeWidth="2"
           strokeLinejoin="round" strokeLinecap="round" />
+        {/* 外推預測：虛線＋空心端點（圖例說明「預測」） */}
+        {forecastPath && (
+          <>
+            <path d={forecastPath} fill="none" stroke={color} strokeWidth="2"
+              strokeDasharray="5 4" strokeLinecap="round" opacity="0.75" />
+            {forecast.slice(-1).map((f) => (
+              <circle key={f.date} cx={px(new Date(f.date).getTime())}
+                cy={py(f.value)} r="4" fill={SURFACE} stroke={color} strokeWidth="2" />
+            ))}
+            <text x={W - M.right} y={py(forecast[forecast.length - 1].value) - 10}
+              fontSize="10" fill={MUTED} textAnchor="end">預測 {fmt(forecast[forecast.length - 1].value)}{unit}</text>
+          </>
+        )}
         {/* 端點標記：8px 點＋2px 表面環＋端點值（文字用 ink，非系列色） */}
-        <circle cx={px(xs[xs.length - 1])} cy={py(last.value)} r="4" fill={color}
+        <circle cx={px(histXs[histXs.length - 1])} cy={py(last.value)} r="4" fill={color}
           stroke={SURFACE} strokeWidth="2" />
-        <text x={px(xs[xs.length - 1]) + 8} y={py(last.value) + 3.5} fontSize="11" fill={INK}
-          fontWeight="600" style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {fmt(last.value)}{unit}
-        </text>
+        {!forecastPath && (
+          <text x={px(histXs[histXs.length - 1]) + 8} y={py(last.value) + 3.5} fontSize="11"
+            fill={INK} fontWeight="600" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {fmt(last.value)}{unit}
+          </text>
+        )}
         {/* 十字線 hover 層 */}
         {hover !== null && (
           <>
-            <line x1={px(xs[hover])} x2={px(xs[hover])} y1={M.top} y2={H - M.bottom}
+            <line x1={px(histXs[hover])} x2={px(histXs[hover])} y1={M.top} y2={H - M.bottom}
               stroke={BASE} strokeWidth="1" />
-            <circle cx={px(xs[hover])} cy={py(data[hover].value)} r="5" fill={color}
+            <circle cx={px(histXs[hover])} cy={py(data[hover].value)} r="5" fill={color}
               stroke={SURFACE} strokeWidth="2" />
           </>
         )}
@@ -102,7 +127,7 @@ export default function TrendChart({ title, unit, data = [], color }) {
       {hover !== null && (
         <div style={{
           position: 'absolute', pointerEvents: 'none',
-          left: `${(px(xs[hover]) / W) * 100}%`, top: `${(py(data[hover].value) / H) * 100}%`,
+          left: `${(px(histXs[hover]) / W) * 100}%`, top: `${(py(data[hover].value) / H) * 100}%`,
           transform: 'translate(-50%, -130%)',
           background: INK, color: '#fff', borderRadius: 6, padding: '3px 8px',
           fontSize: 11, whiteSpace: 'nowrap',

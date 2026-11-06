@@ -18,6 +18,7 @@
 
 | 候選 | 月費 | 優點 | 注意 |
 |---|---|---|---|
+| **Vercel＋Neon**（現行首選，Galen 已有 Vercel 帳號） | 0（Hobby＋Neon free） | 前端＋FastAPI function 同平台一鍵部署；push 即發佈 | serverless 無本地磁碟——**SQLite 不持久**，資料庫改用 Neon 免費 Postgres（`HIS_DB_URL` 直接換） |
 | **Fly.io** | 免費額度內 ~0 | 單容器部署最順、有 volume、CLI 簡單 | 免費方案機器會休眠（冷啟動延遲） |
 | **Render** | 免費 web service | 設定極簡、push 自動部署 | 免費版 15 分鐘閒置休眠、無持久磁碟（要外部 DB） |
 | **Oracle Cloud Free Tier** | 0（永久） | ARM VM 效能好、無休眠 | 要自管 VM/憑證/更新（运维成本最高） |
@@ -46,7 +47,25 @@
 - [ ] 弱網/離線行為：目前無 PWA/離線支援——記錄痛點，作為 M5 追加或 M6 前置
 - [ ] 資料累積：實際使用 ≥2 週後回頭檢視 M6 的資料量是否足夠建模
 
-## 部署步驟（平台選定後）
+## Vercel＋Neon 部署步驟（repo 已備妥設定檔）
+
+repo 根目錄已含 `vercel.json`、`api/index.py`（ASGI 進入點）、
+精簡版 `requirements.txt`（含 psycopg）。
+
+1. **Neon**：[neon.tech](https://neon.tech) 免費註冊 → 建立 Project →
+   複製連線字串（`postgresql+psycopg://…`，注意 schema 前綴要 `+psycopg`）
+2. **Vercel**：Import Git Repository（選 Health-Inbody-System）→
+   Environment Variables 設定：
+   - `HIS_DB_URL`＝Neon 連線字串
+   - `HIS_API_TOKEN`＝自訂強 token（方案 B 已實作）
+3. Deploy → 開 `/api/health` 驗證 → 前端「設定」頁填入同一組 token
+4. 之後 push 到 main 自動重新部署
+
+> 注意：首次冷啟動會自動 seed 2,085 筆食物到 Postgres（約 1-2 秒）。
+> 部署設定檔未經實際 deploy 驗證——首次部署若 includeFiles 沒帶到
+> `backend/data/`，在 vercel.json 的 includeFiles 加 `"backend/data/**"`。
+
+## 部署步驟（平台���定後）
 
 1. （方案 B）加 token middleware ＋ 前端帶 token → 測試綠燈
 2. 平台建立 app（依所選平台文件），掛 volume、設環境變數

@@ -83,3 +83,19 @@ def test_recommendations_endpoint():
         assert r["en"] and r["zh"] and r["level"] in {"info", "warning", "positive"}
     # 蔬菜缺口應被提出（當日只吃雞胸肉）
     assert any(r["type"].startswith("group:") for r in recs)
+
+
+def test_recent_foods():
+    chicken = _first_food("去皮雞胸肉")
+    egg = _first_food("雞蛋平均值")
+    day = "2026-11-06"
+    client.post("/api/meals", json={
+        "record_date": day, "food_id": chicken["id"], "grams": 100})
+    client.post("/api/meals", json={
+        "record_date": day, "food_id": egg["id"], "grams": 50})
+
+    recents = client.get("/api/foods/recent").json()
+    assert recents, "should not be empty"
+    ids = [f["id"] for f in recents]
+    # 最新使用者排最前（egg 最後記錄）
+    assert ids.index(egg["id"]) < ids.index(chicken["id"])

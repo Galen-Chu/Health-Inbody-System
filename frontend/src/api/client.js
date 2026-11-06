@@ -34,4 +34,6 @@ export const api = {
   deleteMeal: (id) => request(`/meals/${id}`, { method: 'DELETE' }),
   getSummary: (day) => request(`/summary/${day}`),
   getRecommendations: (day) => request(`/recommendations/${day}`),
+  getWeightTrend: (horizon = 14) => request(`/trend/weight?horizon=${horizon}`),
+  getRecentFoods: () => request('/foods/recent'),
 }

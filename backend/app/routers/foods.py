@@ -3,7 +3,7 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -76,6 +76,17 @@ def search_foods(
             raise HTTPException(422, f"unknown category: {category}")
         stmt = stmt.where(Food.category == category)
     return list(db.scalars(stmt.order_by(Food.id).limit(limit)))
+
+
+@router.get("/foods/recent", response_model=list[FoodOut])
+def recent_foods(limit: int = Query(default=10, ge=1, le=20),
+                 db: Session = Depends(get_db)):
+    """最近記錄過的食物（依最近一次使用排序）——快速選取用."""
+    latest = (select(MealEntry.food_id, func.max(MealEntry.id).label("last_id"))
+              .where(MealEntry.food_id.isnot(None))
+              .group_by(MealEntry.food_id)
+              .order_by(desc("last_id")).limit(limit).subquery())
+    return list(db.scalars(select(Food).join(latest, Food.id == latest.c.food_id)))
 
 
 @router.get("/foods/{food_id}", response_model=FoodOut)

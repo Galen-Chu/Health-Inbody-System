@@ -8,16 +8,23 @@ const SERIES = [
   { key: 'muscle_mass_kg', title: '肌肉量 Muscle Mass', unit: ' kg', color: '#1baf7a' },
 ]
 
+const RANGES = [['30', '30 天'], ['90', '90 天'], ['all', '全部']]
+
 export default function Trends() {
   const [metrics, setMetrics] = useState([])
+  const [weightForecast, setWeightForecast] = useState(null)
+  const [range, setRange] = useState('all')
   const [message, setMessage] = useState('')
   const [form, setForm] = useState({
     measured_on: new Date().toISOString().slice(0, 10),
     weight_kg: '', body_fat_pct: '', muscle_mass_kg: '',
   })
 
-  const load = () => api.getBodyMetrics()
-    .then((list) => setMetrics([...list].reverse()))  // API 回傳新→舊，圖表要舊→新
+  const load = () => Promise.all([api.getBodyMetrics(), api.getWeightTrend()])
+    .then(([list, trend]) => {
+      setMetrics([...list].reverse())   // API 回傳新→舊，圖表要舊→新
+      setWeightForecast(trend.forecast)
+    })
     .catch(() => setMessage('載入失敗，後端未啟動？'))
 
   useEffect(() => { load() }, [])
@@ -38,6 +45,16 @@ export default function Trends() {
   return (
     <div>
       <h2>身體組成趨勢 Body Trends</h2>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+        {RANGES.map(([key, label]) => (
+          <button key={key} onClick={() => setRange(key)}
+            style={{ padding: '4px 12px', cursor: 'pointer',
+              fontWeight: range === key ? 'bold' : 'normal',
+              borderBottom: range === key ? '2px solid #2a6' : 'none' }}>
+            {label}
+          </button>
+        ))}
+      </div>
 
       <div style={{ marginBottom: 20, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <input type="date" value={form.measured_on}
@@ -53,12 +70,17 @@ export default function Trends() {
       </div>
 
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
-        {SERIES.map(({ key, title, unit, color }) => (
-          <TrendChart key={key} title={title} unit={unit} color={color}
-            data={metrics
-              .filter((m) => m[key] != null)
-              .map((m) => ({ date: m.measured_on, value: m[key] }))} />
-        ))}
+        {SERIES.map(({ key, title, unit, color }) => {
+          const cutoff = range === 'all' ? null
+            : new Date(Date.now() - Number(range) * 86400_000).toISOString().slice(0, 10)
+          return (
+            <TrendChart key={key} title={title} unit={unit} color={color}
+              forecast={key === 'weight_kg' ? weightForecast : null}
+              data={metrics
+                .filter((m) => m[key] != null && (!cutoff || m.measured_on >= cutoff))
+                .map((m) => ({ date: m.measured_on, value: m[key] }))} />
+          )
+        })}
       </div>
 
       <h3>量測歷史</h3>

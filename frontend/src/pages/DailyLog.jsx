@@ -21,6 +21,18 @@ export default function DailyLog() {
   const [selected, setSelected] = useState(null)
   const [grams, setGrams] = useState(100)
   const [meals, setMeals] = useState([])
+  const [recents, setRecents] = useState([])
+  const [favorites, setFavorites] = useState(
+    JSON.parse(localStorage.getItem('his_fav_foods') || '[]'))
+
+  const toggleFavorite = (food) => {
+    const exists = favorites.some((f) => f.id === food.id)
+    const next = exists
+      ? favorites.filter((f) => f.id !== food.id)
+      : [...favorites, food]
+    setFavorites(next)
+    localStorage.setItem('his_fav_foods', JSON.stringify(next))
+  }
 
   useEffect(() => {
     api.getRecords().then((records) => {
@@ -32,6 +44,7 @@ export default function DailyLog() {
       }
     }).catch(() => {})
     api.listMeals(date).then(setMeals).catch(() => {})
+    api.getRecentFoods().then(setRecents).catch(() => {})
   }, [date])
 
   useEffect(() => {
@@ -86,11 +99,41 @@ export default function DailyLog() {
           <td style={{ padding: 6 }}>
             <input type="number" min="0" style={{ width: 80 }}
               value={waterMl} onChange={(e) => setWaterMl(e.target.value)} />
+            {' '}
+            <button onClick={() => setWaterMl(Number(waterMl) + 250)}
+              style={{ cursor: 'pointer' }}>+250</button>
+            <button onClick={() => setWaterMl(Number(waterMl) + 500)}
+              style={{ marginLeft: 4, cursor: 'pointer' }}>+500</button>
           </td>
         </tr>
       </tbody></table>
 
       <h3>食物記錄（熱量自動計算）</h3>
+      {(favorites.length > 0 || recents.length > 0) && (
+        <div style={{ marginBottom: 10, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          {favorites.length > 0 && (
+            <span style={{ fontSize: 13, color: '#57606a' }}>最愛：</span>
+          )}
+          {favorites.map((f) => (
+            <button key={f.id} onClick={() => setSelected(f)}
+              style={{ padding: '3px 10px', cursor: 'pointer', borderRadius: 12,
+                border: '1px solid #2a6', background: '#f0fdf4' }}>
+              ★ {f.name}
+            </button>
+          ))}
+          {recents.length > 0 && (
+            <span style={{ fontSize: 13, color: '#57606a', marginLeft: 8 }}>最近：</span>
+          )}
+          {recents.filter((r) => !favorites.some((f) => f.id === r.id))
+            .slice(0, 5).map((f) => (
+            <button key={f.id} onClick={() => setSelected(f)}
+              style={{ padding: '3px 10px', cursor: 'pointer', borderRadius: 12,
+                border: '1px solid #d0d7de' }}>
+              {f.name}
+            </button>
+          ))}
+        </div>
+      )}
       <div>
         <input style={{ width: 240 }} placeholder="搜尋食物（例：雞胸肉、白米）"
           value={query} onChange={(e) => { setQuery(e.target.value); setSelected(null) }} />
@@ -115,6 +158,11 @@ export default function DailyLog() {
             <span style={{ marginLeft: 8, color: '#57606a' }}>
               ≈ {Math.round(selected.calories_kcal_per_100g * grams / 100)} kcal
             </span>
+            {' '}
+            <button onClick={() => toggleFavorite(selected)}
+              title="加入/移除最愛" style={{ cursor: 'pointer' }}>
+              {favorites.some((f) => f.id === selected.id) ? '★' : '☆'}
+            </button>
           </>
         )}
       </div>

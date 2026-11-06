@@ -117,3 +117,19 @@ def add_body_metric(data: BodyMetricIn, db: Session = Depends(get_db)):
 def list_body_metrics(db: Session = Depends(get_db)):
     return list(db.scalars(select(BodyMetric)
                            .order_by(BodyMetric.measured_on.desc()).limit(365)))
+
+
+@router.get("/trend/weight")
+def weight_trend(horizon: int = 14, db: Session = Depends(get_db)):
+    """體重趨勢＋Holt 外推預測（M6 前置·無 ML 版）."""
+    from app.engine.trend import forecast_with_dates
+
+    metrics = list(db.scalars(select(BodyMetric)
+                              .order_by(BodyMetric.measured_on)))
+    history = [{"date": m.measured_on.isoformat(), "value": m.weight_kg}
+               for m in metrics]
+    forecast = forecast_with_dates(
+        [h["date"] for h in history], [h["value"] for h in history],
+        horizon=horizon)
+    return {"history": history, "forecast": forecast,
+            "method": "holt-linear" if forecast else "insufficient-data"}
