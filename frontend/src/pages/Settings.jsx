@@ -18,6 +18,7 @@ const SELECTS = [
 export default function Settings() {
   const [profile, setProfile] = useState(null)
   const [message, setMessage] = useState('')
+  const [tokenMsg, setTokenMsg] = useState('')
 
   useEffect(() => {
     api.getProfile().then(setProfile).catch(() => setMessage('載入失敗，後端未啟動？'))
@@ -57,6 +58,21 @@ export default function Settings() {
       </tbody></table>
       <button onClick={save} style={{ marginTop: 12, padding: '8px 24px', cursor: 'pointer' }}>儲存</button>
       {message && <span style={{ marginLeft: 12, color: '#2a6' }}>{message}</span>}
+
+      <h3 style={{ marginTop: 32 }}>連線設定 Connection</h3>
+      <p style={{ fontSize: 13, color: '#57606a' }}>
+        部署端有設定 HIS_API_TOKEN 時才需要填；本機開發留空即可。
+      </p>
+      <input
+        type="password" placeholder="API Token" style={{ width: 280 }}
+        defaultValue={localStorage.getItem('his_api_token') || ''}
+        onChange={(e) => {
+          const v = e.target.value.trim()
+          if (v) localStorage.setItem('his_api_token', v)
+          else localStorage.removeItem('his_api_token')
+          setTokenMsg(v ? '✓ 已儲存（重新整理後生效）' : '已清除')
+        }} />
+      {tokenMsg && <span style={{ marginLeft: 12, color: '#2a6', fontSize: 13 }}>{tokenMsg}</span>}
     </div>
   )
 }

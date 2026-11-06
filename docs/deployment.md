@@ -30,8 +30,8 @@
 系統目前**無認證**——上公網前至少要一層：
 
 - [ ] **方案 A（最快）**：平台層防護——Fly.io/Render 無內建；搭配 Cloudflare Access（免費方案可擋在源站前）或 reverse proxy（Caddy basic auth）
-- [ ] **方案 B**：應用層——FastAPI 加簡單 Bearer token middleware（`HIS_API_TOKEN` 環境變數，前端帶入）；約 30 行，無外部依賴
-- 建議：**M5 先做方案 B**（不依賴平台、本機/雲端一致），之後有需要再疊 A
+- [x] **方案 B**：✅ **已實作（2026-11-06）**——FastAPI Bearer middleware（`HIS_API_TOKEN` 環境變數；`/api/health` 保持開放供平台探活；前端「設定」頁可填 token）。未設定環境變數＝本機開放模式，開發體驗不變。之後有需要再疊 A
+- 建議：~~M5 先做方案 B~~（已完成）；上雲時只需在平台環境變數設定 HIS_API_TOKEN
 
 ## 決策 3：資料持久化
 

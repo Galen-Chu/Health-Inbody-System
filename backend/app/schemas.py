@@ -23,6 +23,9 @@ class ProfileIn(BaseModel):
 
 class ProfileOut(ProfileIn):
     id: int
+    # 輸出寬鬆化：全新資料庫的預設 0 值必須能被序列化（gt=0 只約束輸入）
+    height_cm: float
+    weight_kg: float
 
     model_config = ConfigDict(from_attributes=True)
 

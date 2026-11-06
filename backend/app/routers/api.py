@@ -99,8 +99,15 @@ def get_record(record_date: date, db: Session = Depends(get_db)):
 
 @router.post("/body-metrics", response_model=BodyMetricOut)
 def add_body_metric(data: BodyMetricIn, db: Session = Depends(get_db)):
-    metric = BodyMetric(**data.model_dump())
-    db.add(metric)
+    """新增量測；同日重複記錄視為修正（upsert），趨勢圖一日一點."""
+    metric = db.scalar(select(BodyMetric)
+                       .where(BodyMetric.measured_on == data.measured_on))
+    if metric is None:
+        metric = BodyMetric(**data.model_dump())
+        db.add(metric)
+    else:
+        for field, value in data.model_dump().items():
+            setattr(metric, field, value)
     db.commit()
     db.refresh(metric)
     return metric

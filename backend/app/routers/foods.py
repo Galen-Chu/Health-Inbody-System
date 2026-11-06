@@ -7,9 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Profile
 from app.models_food import Food, MealEntry
-from app.schemas import MetricsOut
 
 router = APIRouter(prefix="/api")
 

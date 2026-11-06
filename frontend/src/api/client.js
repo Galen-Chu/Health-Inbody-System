@@ -1,9 +1,18 @@
 // 輕量 API client — 開發期走 Vite proxy，建置後同源
+// 認證：Settings 頁設定的 token 存 localStorage，有設就自動帶 Bearer
+function authHeaders() {
+  const token = localStorage.getItem('his_api_token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 async function request(path, options = {}) {
   const resp = await fetch(`/api${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     ...options,
   })
+  if (resp.status === 401) {
+    throw new Error('401 未授權：請到「設定」頁填入 API Token（部署端 HIS_API_TOKEN）')
+  }
   if (!resp.ok) {
     throw new Error(`API ${path}: ${resp.status}`)
   }
