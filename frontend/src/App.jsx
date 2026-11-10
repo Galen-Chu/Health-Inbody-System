@@ -3,7 +3,7 @@ import Dashboard from './pages/Dashboard.jsx'
 import DailyLog from './pages/DailyLog.jsx'
 import Trends from './pages/Trends.jsx'
 import Settings from './pages/Settings.jsx'
-import BrandLogoMark from './icons/BrandLogoMark.js'
+import BrandLogoH from './icons/BrandLogoH.js'
 import IconDashboard from './icons/IconDashboard.js'
 import IconDiary from './icons/IconDiary.js'
 import IconArrowUpRight from './icons/IconArrowUpRight.js'
@@ -48,7 +48,7 @@ export default function App() {
     <div className="app-shell">
       <header className="app-header">
         <span className="brand">
-          <BrandLogoMark size={28} title="Health Inbody System" />
+          <BrandLogoH size={28} title="Health Inbody System" />
           <span className="brand-title">Health Inbody System</span>
         </span>
         <span className="spacer" />

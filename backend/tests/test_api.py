@@ -33,11 +33,45 @@ def test_metrics_uses_katch_when_bfp_known():
     resp = client.get("/api/metrics")
     assert resp.status_code == 200
     data = resp.json()
+    assert data["ready"] is True
     assert data["formula"] == "katch-mcardle"
     assert data["bmr"] == 1579.6
     assert data["water_target_ml"] == 2450
     assert set(data["six_groups"]["servings"]) == {
         "grains", "protein", "dairy", "vegetables", "fruits", "oils"}
+
+
+def test_metrics_not_ready_when_profile_incomplete():
+    """未填個人資料 → 200 + ready=False（引導填寫），不是 500."""
+    from sqlalchemy import select
+
+    from app.db import SessionLocal
+    from app.models import Profile
+
+    # 共用 DB：自我重設為未填狀態，不依賴測試順序
+    db = SessionLocal()
+    profile = db.scalar(select(Profile).where(Profile.id == 1)) or Profile(id=1)
+    profile.sex = ""
+    profile.height_cm = 0
+    profile.weight_kg = 0
+    profile.age = 0
+    profile.body_fat_pct = None
+    db.add(profile)
+    db.commit()
+    db.close()
+
+    resp = client.get("/api/metrics")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ready"] is False
+    assert set(data["missing"]) == {"sex", "height_cm", "weight_kg", "age"}
+
+    # 補齊後恢復 ready=True
+    client.put("/api/profile", json={
+        "name": "", "sex": "male", "height_cm": 175, "weight_kg": 70,
+        "age": 30, "body_fat_pct": None, "activity": "moderate", "goal": "maintain"})
+    resp = client.get("/api/metrics")
+    assert resp.json()["ready"] is True
 
 
 def test_record_upsert_same_day():

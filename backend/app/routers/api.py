@@ -14,7 +14,8 @@ from app.engine import water as water_engine
 from app.models import BodyMetric, DailyRecord, Profile
 from app.models_food import MealEntry
 from app.schemas import (BodyMetricIn, BodyMetricOut, DailyRecordIn,
-                         DailyRecordOut, MetricsOut, ProfileIn, ProfileOut)
+                         DailyRecordOut, MetricsNotReady, MetricsOut,
+                         ProfileIn, ProfileOut)
 
 router = APIRouter(prefix="/api")
 
@@ -46,9 +47,18 @@ def update_profile(data: ProfileIn, db: Session = Depends(get_db)):
     return profile
 
 
-@router.get("/metrics", response_model=MetricsOut)
+@router.get("/metrics", response_model=MetricsOut | MetricsNotReady)
 def get_metrics(db: Session = Depends(get_db)):
     profile = _ensure_profile(db)
+    # 未填齊（或性別打錯）→ 引擎無法計算：回「未就緒」讓前端引導，而非 500
+    missing = []
+    for f in ("height_cm", "weight_kg", "age"):
+        if not getattr(profile, f):
+            missing.append(f)
+    if profile.sex not in ("male", "female"):
+        missing.append("sex")
+    if missing:
+        return MetricsNotReady(missing=missing)
     bfp = profile.body_fat_pct or None
     formula = "katch-mcardle" if bfp else "mifflin-st-jeor"
     bmr = bmr_engine.calc_bmr(profile.weight_kg, profile.height_cm,

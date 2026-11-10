@@ -36,6 +36,7 @@ const REC_ICON_COLOR = {
 
 export default function Dashboard() {
   const [metrics, setMetrics] = useState(null)
+  const [notReady, setNotReady] = useState(null)   // 個人資料未填齊 → 引導
   const [summary, setSummary] = useState(null)
   const [recs, setRecs] = useState([])
   const [error, setError] = useState('')
@@ -43,19 +44,38 @@ export default function Dashboard() {
 
   useEffect(() => {
     const todayStr = new Date().toISOString().slice(0, 10)
-    Promise.all([api.getMetrics(), api.getRecords(), api.getSummary(todayStr),
-                 api.getRecommendations(todayStr)])
-      .then(([m, records, s, r]) => {
+    api.getMetrics()
+      .then((m) => {
+        if (!m.ready) { setNotReady(m.missing || []); return null }
         setMetrics(m)
-        setSummary(s)
-        setRecs(r.recommendations || [])
-        const today = records.find((r2) => r2.record_date === todayStr) || null
-        setHexIntake(today?.servings || {})
+        return Promise.all([api.getRecords(), api.getSummary(todayStr),
+                            api.getRecommendations(todayStr)])
+          .then(([records, s, r]) => {
+            setSummary(s)
+            setRecs(r.recommendations || [])
+            const today = records.find((r2) => r2.record_date === todayStr) || null
+            setHexIntake(today?.servings || {})
+          })
       })
       .catch((e) => setError(e.message || String(e)))
   }, [])
 
   if (error) return <p className="msg-err">⚠ 載入失敗：{error}</p>
+  if (notReady) {
+    const LABELS = { sex: '性別', height_cm: '身高', weight_kg: '體重', age: '年齡' }
+    return (
+      <div className="card" style={{ maxWidth: 480, textAlign: 'center', padding: '32px 24px' }}>
+        <h2 style={{ marginTop: 0 }}>尚無資料，無法計算</h2>
+        <p className="hint">
+          個人資料還沒填齊（缺：{notReady.map((f) => LABELS[f] || f).join('、')}），
+          BMR／TDEE 與建議引擎需要這些數字才能計算。
+        </p>
+        <button className="btn btn-primary" onClick={() => { window.location.hash = 'settings' }}>
+          前往設定填寫個人資料
+        </button>
+      </div>
+    )
+  }
   if (!metrics) return <p className="empty">載入中…</p>
 
   const stats = [

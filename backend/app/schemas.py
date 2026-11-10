@@ -58,9 +58,16 @@ class BodyMetricOut(BodyMetricIn):
 
 class MetricsOut(BaseModel):
     """引擎計算結果總覽."""
+    ready: Literal[True] = True
     bmr: float
     formula: str
     tdee: float
     calorie_target: float
     water_target_ml: int
     six_groups: dict
+
+
+class MetricsNotReady(BaseModel):
+    """個人資料未填齊——引擎無法計算，前端顯示引導而非錯誤."""
+    ready: Literal[False] = False
+    missing: list[str]
