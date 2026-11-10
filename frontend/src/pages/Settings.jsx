@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client.js'
 
 const FIELDS = [
@@ -17,62 +17,94 @@ const SELECTS = [
 
 export default function Settings() {
   const [profile, setProfile] = useState(null)
+  const [profileMsg, setProfileMsg] = useState('')
   const [message, setMessage] = useState('')
   const [tokenMsg, setTokenMsg] = useState('')
+  const retryTimer = useRef(null)
 
-  useEffect(() => {
-    api.getProfile().then(setProfile).catch(() => setMessage('載入失敗，後端未啟動？'))
-  }, [])
+  const loadProfile = () => {
+    setProfile(null)
+    setProfileMsg('載入中…')
+    api.getProfile()
+      .then((p) => { setProfile(p); setProfileMsg('') })
+      .catch((e) => {
+        const msg = String(e.message || e)
+        setProfileMsg(msg.includes('401')
+          ? '未連線（401）——請在上方「連線設定」填入 API Token（＝部署端 HIS_API_TOKEN 的值），存好後此處會自動重試'
+          : `載入失敗：${msg}`)
+      })
+  }
+  useEffect(loadProfile, [])
+  useEffect(() => () => clearTimeout(retryTimer.current), [])
 
-  if (!profile) return <p>{message || '載入中…'}</p>
+  // token 一變（貼上/修改）就存好並自動重試連線，不再需要手動重新整理
+  const onTokenChange = (e) => {
+    const v = e.target.value.trim()
+    if (v) localStorage.setItem('his_api_token', v)
+    else localStorage.removeItem('his_api_token')
+    setTokenMsg(v ? '✓ 已儲存，自動重試連線…' : '已清除')
+    clearTimeout(retryTimer.current)
+    retryTimer.current = setTimeout(loadProfile, 600)
+  }
 
   const save = async () => {
-    await api.saveProfile({ ...profile, body_fat_pct: profile.body_fat_pct || null })
-    setMessage('✓ 已儲存，Dashboard 將依新數據重算')
+    try {
+      await api.saveProfile({ ...profile, body_fat_pct: profile.body_fat_pct || null })
+      setMessage('✓ 已儲存，Dashboard 將依新數據重算')
+    } catch (e) {
+      setMessage(`⚠ 儲存失敗：${e.message || e}`)
+    }
   }
 
   return (
     <div>
       <h2>個人設定 Settings</h2>
-      <table><tbody>
-        {FIELDS.map(([key, label, type]) => (
-          <tr key={key}>
-            <td style={{ padding: 6 }}>{label}</td>
-            <td style={{ padding: 6 }}>
-              <input type={type} value={profile[key] ?? ''}
-                onChange={(e) => setProfile({ ...profile, [key]: e.target.value })} />
-            </td>
-          </tr>
-        ))}
-        {SELECTS.map(([key, label, options]) => (
-          <tr key={key}>
-            <td style={{ padding: 6 }}>{label}</td>
-            <td style={{ padding: 6 }}>
-              <select value={profile[key]}
-                onChange={(e) => setProfile({ ...profile, [key]: e.target.value })}>
-                {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </td>
-          </tr>
-        ))}
-      </tbody></table>
-      <button onClick={save} style={{ marginTop: 12, padding: '8px 24px', cursor: 'pointer' }}>儲存</button>
-      {message && <span style={{ marginLeft: 12, color: '#2a6' }}>{message}</span>}
 
-      <h3 style={{ marginTop: 32 }}>連線設定 Connection</h3>
+      <h3 style={{ marginTop: 8 }}>連線設定 Connection</h3>
       <p style={{ fontSize: 13, color: '#57606a' }}>
-        部署端有設定 HIS_API_TOKEN 時才需要填；本機開發留空即可。
+        部署端（Vercel）有設 HIS_API_TOKEN 時必填——填部署時設定的同一組值；本機開發留空即可。
       </p>
       <input
         type="password" placeholder="API Token" style={{ width: 280 }}
         defaultValue={localStorage.getItem('his_api_token') || ''}
-        onChange={(e) => {
-          const v = e.target.value.trim()
-          if (v) localStorage.setItem('his_api_token', v)
-          else localStorage.removeItem('his_api_token')
-          setTokenMsg(v ? '✓ 已儲存（重新整理後生效）' : '已清除')
-        }} />
+        onChange={onTokenChange} />
       {tokenMsg && <span style={{ marginLeft: 12, color: '#2a6', fontSize: 13 }}>{tokenMsg}</span>}
+
+      <h3 style={{ marginTop: 32 }}>個人資料 Profile</h3>
+      {profile ? (
+        <>
+          <table><tbody>
+            {FIELDS.map(([key, label, type]) => (
+              <tr key={key}>
+                <td style={{ padding: 6 }}>{label}</td>
+                <td style={{ padding: 6 }}>
+                  <input type={type} value={profile[key] ?? ''}
+                    onChange={(e) => setProfile({ ...profile, [key]: e.target.value })} />
+                </td>
+              </tr>
+            ))}
+            {SELECTS.map(([key, label, options]) => (
+              <tr key={key}>
+                <td style={{ padding: 6 }}>{label}</td>
+                <td style={{ padding: 6 }}>
+                  <select value={profile[key]}
+                    onChange={(e) => setProfile({ ...profile, [key]: e.target.value })}>
+                    {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </td>
+              </tr>
+            ))}
+          </tbody></table>
+          <button onClick={save} style={{ marginTop: 12, padding: '8px 24px', cursor: 'pointer' }}>儲存</button>
+          {message && <span style={{ marginLeft: 12 }}>{message}</span>}
+        </>
+      ) : (
+        <p style={{ fontSize: 14, color: '#57606a' }}>
+          {profileMsg}{' '}
+          {profileMsg !== '載入中…'
+            && <button onClick={loadProfile} style={{ padding: '4px 12px', cursor: 'pointer' }}>重新載入</button>}
+        </p>
+      )}
 
       <h3 style={{ marginTop: 32 }}>資料匯出 Data Export</h3>
       <p style={{ fontSize: 13, color: '#57606a' }}>

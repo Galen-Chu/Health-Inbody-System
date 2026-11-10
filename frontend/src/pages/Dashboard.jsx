@@ -42,12 +42,12 @@ export default function Dashboard() {
         const today = records.find((r2) => r2.record_date === todayStr) || null
         setHexIntake(today?.servings || {})
       })
-      .catch((e) => setError(String(e)))
+      .catch((e) => setError(e.message || String(e)))
   }, [])
 
   const [hexIntake, setHexIntake] = useState({})
 
-  if (error) return <p>⚠ 無法連上後端（請確認 uvicorn 已啟動）：{error}</p>
+  if (error) return <p>⚠ 載入失敗：{error}</p>
   if (!metrics) return <p>載入中…</p>
 
   const stats = [
