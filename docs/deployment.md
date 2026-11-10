@@ -12,7 +12,7 @@
 - **單容器建置**：`Dockerfile` 多階段（前端 dist → 後端 serve），`docker compose up --build` 一鍵跑
 - **設定介面**：環境變數 `HIS_DB_URL`（換 DB 不改碼）、`HIS_HOST`／`HIS_PORT`
 - **健康檢查**：`GET /api/health`（可接平台的監控）
-- **CI**：push 即跑 42 項後端測試＋前端建置
+- **CI**：push 即跑 67 項後端測試＋前端 lint/test/build
 
 ## 決策 1：平台（待選定）
 
@@ -49,21 +49,58 @@
 
 ## Vercel＋Neon 部署步驟（repo 已備妥設定檔）
 
-repo 根目錄已含 `vercel.json`、`api/index.py`（ASGI 進入點）、
-精簡版 `requirements.txt`（含 psycopg）。
+`vercel.json` 採 Vercel **Services** 格式（beta，單一專案一次部署前後端、
+同一網域）：`web`＝`frontend/`（Vite 靜態輸出）、`api`＝`backend/`
+（FastAPI，entrypoint `app.main:app`）；頂層 rewrites 把 `/api/*` 交給後端
+service，其餘路徑交給前端 service。Python 依賴由 `backend/requirements.txt`
+安裝（已含 psycopg，Neon 連線用）。
+
+### 路徑一：網頁 UI
 
 1. **Neon**：[neon.tech](https://neon.tech) 免費註冊 → 建立 Project →
    複製連線字串（`postgresql+psycopg://…`，注意 schema 前綴要 `+psycopg`）
-2. **Vercel**：Import Git Repository（選 Health-Inbody-System）→
+2. **Vercel**：Add New… → Project → Import `Health-Inbody-System` →
    Environment Variables 設定：
    - `HIS_DB_URL`＝Neon 連線字串
    - `HIS_API_TOKEN`＝自訂強 token（方案 B 已實作）
-3. Deploy → 開 `/api/health` 驗證 → 前端「設定」頁填入同一組 token
+3. 頁面最底部 **Deploy** → 完成後開 `<網址>/api/health` 驗證 →
+   前端「設定」頁填入同一組 token
 4. 之後 push 到 main 自動重新部署
 
 > 注意：首次冷啟動會自動 seed 2,085 筆食物到 Postgres（約 1-2 秒）。
-> 部署設定檔未經實際 deploy 驗證——首次部署若 includeFiles 沒帶到
-> `backend/data/`，在 vercel.json 的 includeFiles 加 `"backend/data/**"`。
+> Services 打包理論上會帶到 `backend/data/`，但未經實際 deploy 驗證——
+> 若 API 500 且 log 顯示找不到 `foods_full.csv`，到
+> [Issue #1](https://github.com/Galen-Chu/Health-Inbody-System/issues/1) 回報，
+> 需在 api service 補檔案打包設定。
+
+### 路徑二：CLI 部署（在 PowerShell 依序執行）
+
+```powershell
+# 1. 安裝 CLI（一次性）
+npm i -g vercel
+
+# 2. 進到專案目錄
+cd D:\Health-Inbody-System
+
+# 3. 登入（會開瀏覽器按確認）
+vercel login
+
+# 4. 建立並連結專案（問題全部按 Enter 採預設；它會抓到 vercel.json 的設定）
+vercel link
+
+# 5. 設定兩個環境變數（各會提示你貼值）
+vercel env add HIS_DB_URL production
+#   → 貼 Neon 連線字串，前綴改 postgresql+psycopg://
+
+vercel env add HIS_API_TOKEN production
+#   → 貼自訂 token
+
+# 6. 正式部署
+vercel --prod
+```
+
+兩條路徑擇一即可，結果相同；CLI 部署完終端機會印出網址，
+驗證方式同路徑一步驟 3。
 
 ## 部署步驟（平台���定後）
 

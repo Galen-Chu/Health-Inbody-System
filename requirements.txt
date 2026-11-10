@@ -1,5 +1,0 @@
-# Vercel runtime dependencies (root) — 精簡版：不含測試/資料處理工具
-# backend/requirements.txt 是開發環境完整版
-fastapi>=0.115
-sqlalchemy>=2.0
-psycopg[binary]>=3.1   # Neon Postgres（serverless 上 SQLite 不持久）
