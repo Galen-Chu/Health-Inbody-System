@@ -1,0 +1,222 @@
+/* HIS 介面層 — 只引用 Uniconsign token 變數，不出現裸色碼
+   （圖表系列色除外：下方 --chart-* 為 dataviz 驗證器通過值） */
+
+/* ── 圖表系列色（categorical，固定順序＝固定實體）──────────────
+   體重=c1 綠 · 體脂=c2 黃 · 肌肉量=c3 青
+   light/dark 皆以 all-pairs 通過六項檢查（亮面 #FFFFFF / 暗面 #2A2925）；
+   暗面 c1 對比 2.62:1 落在 relief 區 → 依規以直接標值＋量測歷史表格補足 */
+:root {
+  --chart-c1: #167839;
+  --chart-c2: #9A8700;
+  --chart-c3: #009CAD;
+}
+
+/* ── 基礎 ─────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-md);
+  line-height: var(--font-line-height-snug);
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 { font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); margin: 0; }
+h2 { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); margin: var(--space-8) 0 var(--space-3); }
+h3 { font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); margin: var(--space-6) 0 var(--space-2); }
+p  { margin: var(--space-2) 0; }
+
+/* ── App 外框：頂欄＋內容＋（手機）底部 tab bar ───────────── */
+.app-shell { min-height: 100dvh; display: flex; flex-direction: column; }
+
+.app-header {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-default);
+}
+.app-header .brand { display: flex; align-items: center; gap: var(--space-2); color: var(--color-icon-brand); }
+.app-header .brand-title { font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); }
+.app-header .spacer { flex: 1; }
+
+/* 桌機頂部導覽 */
+.app-nav { display: none; gap: var(--space-1); padding: 0 var(--space-4); background: var(--color-bg-surface); border-bottom: 1px solid var(--color-border-default); }
+.app-nav button {
+  appearance: none; background: none; border: none; cursor: pointer;
+  font: inherit; padding: var(--space-3) var(--space-3);
+  color: var(--color-text-secondary);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.app-nav button.active { color: var(--color-text-primary); font-weight: var(--font-weight-semibold); border-bottom-color: var(--color-bg-brand); }
+
+/* 手機底部 tab bar */
+.tab-bar {
+  display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+  background: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border-default);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.tab-bar button {
+  appearance: none; background: none; border: none; cursor: pointer;
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: var(--space-2) 0 var(--space-2);
+  font-size: var(--font-size-xs); color: var(--color-text-secondary);
+}
+.tab-bar button.active { color: var(--color-icon-brand); font-weight: var(--font-weight-semibold); }
+
+.app-main {
+  width: 100%; max-width: 1080px; margin: 0 auto;
+  padding: var(--space-4) var(--space-4) var(--space-16);
+}
+
+@media (min-width: 768px) {
+  .app-nav { display: flex; }
+  .tab-bar { display: none; }
+  .app-main { padding-bottom: var(--space-10); }
+}
+
+/* ── 卡片與統計 ────────────────────────────────────────── */
+.card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--space-4);
+}
+
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
+.stat {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+}
+.stat-label { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.stat-value { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); margin-top: var(--space-1); }
+
+/* ── 按鈕 ─────────────────────────────────────────────── */
+.btn {
+  appearance: none; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  font: inherit; cursor: pointer; border: 1px solid transparent;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  transition: background var(--duration-fast) var(--easing-standard), border-color var(--duration-fast) var(--easing-standard);
+}
+.btn:disabled { color: var(--color-text-disabled); cursor: not-allowed; }
+.btn-primary { background: var(--color-bg-brand); color: var(--color-text-on-brand); }
+.btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-secondary { background: var(--color-bg-surface); border-color: var(--color-border-default); color: var(--color-text-primary); }
+.btn-secondary:hover:not(:disabled) { background: var(--color-bg-sunken); }
+.btn-ghost { background: transparent; color: var(--color-text-secondary); }
+.btn-ghost:hover:not(:disabled) { background: var(--color-bg-sunken); color: var(--color-text-primary); }
+.btn-danger { background: transparent; color: var(--color-status-danger); }
+.btn-danger:hover:not(:disabled) { background: var(--color-bg-sunken); }
+.btn-sm { padding: var(--space-1) var(--space-3); font-size: var(--font-size-sm); }
+.btn-icon { padding: var(--space-2); width: 36px; }
+
+/* ── 表單 ─────────────────────────────────────────────── */
+.input, .select {
+  font: inherit; color: var(--color-text-primary);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+}
+.input:focus, .select:focus {
+  outline: none; border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 3px var(--color-bg-brand-subtle);
+}
+.input::placeholder { color: var(--color-text-disabled); }
+
+.field-row {
+  display: grid; grid-template-columns: minmax(140px, 220px) 1fr;
+  gap: var(--space-2) var(--space-4); align-items: center;
+  padding: var(--space-2) 0;
+}
+.field-row label { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+@media (max-width: 600px) { .field-row { grid-template-columns: 1fr; } }
+
+.form-inline { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.hint { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+
+/* 搜尋框（含圖示） */
+.search-box { position: relative; display: inline-flex; align-items: center; }
+.search-box .input { padding-left: var(--space-8); }
+.search-box > svg { position: absolute; left: var(--space-2); color: var(--color-icon-muted); pointer-events: none; }
+
+/* ── 訊息 ─────────────────────────────────────────────── */
+.msg-ok   { color: var(--color-status-success); font-size: var(--font-size-sm); }
+.msg-warn { color: var(--color-status-warning); font-size: var(--font-size-sm); }
+.msg-err  { color: var(--color-status-danger); font-size: var(--font-size-sm); }
+
+/* ── Chips（最愛／最近食物）────────────────────────────── */
+.chip-row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-3); }
+.chip {
+  appearance: none; font: inherit; font-size: var(--font-size-sm); cursor: pointer;
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface); border: 1px solid var(--color-border-default);
+  color: var(--color-text-primary);
+}
+.chip:hover { background: var(--color-bg-sunken); }
+.chip-fav { border-color: var(--color-brand-500); background: var(--color-bg-brand-subtle); }
+
+/* ── 表格 ─────────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; }
+.table th {
+  text-align: left; font-size: var(--font-size-sm); font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary); padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border-strong);
+}
+.table td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border-default); }
+.table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.table tr.total td { font-weight: var(--font-weight-semibold); border-bottom: none; }
+
+/* ── 進度條 ───────────────────────────────────────────── */
+.progress { background: var(--color-bg-sunken); border-radius: var(--radius-full); height: 10px; overflow: hidden; }
+.progress-bar { height: 100%; border-radius: var(--radius-full); transition: width var(--duration-base) var(--easing-standard); }
+
+/* ── 分段控制（Trends 範圍）────────────────────────────── */
+.seg { display: inline-flex; background: var(--color-bg-sunken); border-radius: var(--radius-full); padding: 3px; gap: 2px; }
+.seg button {
+  appearance: none; font: inherit; font-size: var(--font-size-sm); cursor: pointer;
+  border: none; background: transparent; color: var(--color-text-secondary);
+  padding: var(--space-1) var(--space-4); border-radius: var(--radius-full);
+}
+.seg button.active { background: var(--color-bg-surface); color: var(--color-text-primary); font-weight: var(--font-weight-semibold); box-shadow: var(--shadow-sm); }
+
+/* ── 建議清單 ─────────────────────────────────────────── */
+.rec-list { list-style: none; padding: 0; margin: 0 0 var(--space-4); max-width: 640px; }
+.rec-list li {
+  display: flex; gap: var(--space-3); align-items: flex-start;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4); margin-bottom: var(--space-2);
+  background: var(--color-bg-surface);
+}
+.rec-list li.positive { background: var(--color-bg-brand-subtle); }
+.rec-zh { font-size: var(--font-size-sm); }
+.rec-en { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+
+/* ── 圖表 tooltip ─────────────────────────────────────── */
+.chart-tip {
+  position: absolute; pointer-events: none;
+  transform: translate(-50%, -130%);
+  background: var(--color-text-primary); color: var(--color-bg-surface);
+  border-radius: var(--radius-sm); padding: 3px var(--space-2);
+  font-size: 11px; white-space: nowrap;
+}
+
+.empty { color: var(--color-text-secondary); }
+
+/* 減少動態偏好 */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}

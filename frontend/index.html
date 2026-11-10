@@ -3,7 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Health Inbody System — 個人健康與營養記錄：量測趨勢、六大類飲食、每日建議" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f7f5" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1917" />
     <title>Health Inbody System</title>
+    <script>
+      // 深色模式在首繪前就定位（避免閃白）；主題切換存 his_theme
+      try {
+        var t = localStorage.getItem('his_theme')
+        if (t) document.documentElement.dataset.theme = t
+      } catch (e) { /* localStorage 不可用時跟隨系統 */ }
+    </script>
   </head>
   <body>
     <div id="root"></div>

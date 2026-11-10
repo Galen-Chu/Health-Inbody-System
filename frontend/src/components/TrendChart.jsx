@@ -1,11 +1,14 @@
-// 小倍數趨勢線圖 —— 依 dataviz 規格：2px 線、髮絲網格、端點標值、
+// 小倍數趨勢線圖 —— 依 dataviz 規格：2px 線、髰絲網格、端點標值、
 // 十字線 tooltip、單系列免圖例（標題即系列名）
 // forecast（可選）：虛線外推段（Holt），空心端點
+// 色彩走 Uniconsign token（CSS 變數，深色模式自動切換）；系列色由 props 傳入
+// 注意：SVG 屬性值不支援 var()，token 色一律經 style 屬性帶入
 import { useState } from 'react'
 
 const W = 340, H = 210, M = { top: 14, right: 46, bottom: 26, left: 44 }
-const INK = '#0b0b0b', INK2 = '#52514e', MUTED = '#898781',
-      GRID = '#e1e0d9', BASE = '#c3c2b7', SURFACE = '#ffffff'
+const INK = 'var(--color-text-primary)', INK2 = 'var(--color-text-secondary)',
+      MUTED = 'var(--color-icon-muted)', GRID = 'var(--color-border-default)',
+      BASE = 'var(--color-border-strong)', SURFACE = 'var(--color-bg-surface)'
 
 export default function TrendChart({ title, unit, data = [], color, forecast = null }) {
   // data: 依時間升序 [{date, value}]；forecast: 同格式（外推段）
@@ -13,7 +16,7 @@ export default function TrendChart({ title, unit, data = [], color, forecast = n
 
   if (data.length === 0) {
     return (
-      <div style={{ width: W, border: `1px solid ${GRID}`, borderRadius: 8, padding: 16 }}>
+      <div style={{ width: '100%', maxWidth: W, border: `1px solid ${GRID}`, borderRadius: 8, padding: 16 }}>
         <div style={{ fontSize: 13, color: INK2 }}>{title}</div>
         <div style={{ height: H - 60, display: 'grid', placeItems: 'center', color: MUTED, fontSize: 13 }}>
           尚無量測資料
@@ -61,56 +64,57 @@ export default function TrendChart({ title, unit, data = [], color, forecast = n
   }
 
   return (
-    <div style={{ width: W, position: 'relative' }}>
+    <div style={{ width: '100%', maxWidth: W, position: 'relative' }}>
       <div style={{ fontSize: 13, color: INK2, marginBottom: 4 }}>{title}</div>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%"
         onMouseMove={onMove} onMouseLeave={() => setHover(null)}
         style={{ display: 'block', cursor: 'crosshair' }}>
-        {/* 髮絲網格（實線、退後） */}
+        {/* 髰絲網格（實線、退後） */}
         {ticks.map((t, i) => (
-          <line key={i} x1={M.left} x2={W - M.right} y1={py(t)} y2={py(t)} stroke={GRID} strokeWidth="1" />
+          <line key={i} x1={M.left} x2={W - M.right} y1={py(t)} y2={py(t)} strokeWidth="1" style={{ stroke: GRID }} />
         ))}
-        <line x1={M.left} x2={W - M.right} y1={H - M.bottom} y2={H - M.bottom} stroke={BASE} strokeWidth="1" />
+        <line x1={M.left} x2={W - M.right} y1={H - M.bottom} y2={H - M.bottom} strokeWidth="1" style={{ stroke: BASE }} />
         {/* Y 軸刻度文字（muted、tabular） */}
         {ticks.map((t, i) => (
           <text key={i} x={M.left - 6} y={py(t) + 3.5} textAnchor="end" fontSize="10"
-            fill={MUTED} style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(t)}</text>
+            style={{ fill: MUTED, fontVariantNumeric: 'tabular-nums' }}>{fmt(t)}</text>
         ))}
         {/* X 軸首/中/尾日期 */}
-        <text x={M.left} y={H - 8} fontSize="10" fill={MUTED}>{data[0].date.slice(5)}</text>
-        <text x={W - M.right} y={H - 8} fontSize="10" fill={MUTED} textAnchor="end">
+        <text x={M.left} y={H - 8} fontSize="10" style={{ fill: MUTED }}>{data[0].date.slice(5)}</text>
+        <text x={W - M.right} y={H - 8} fontSize="10" textAnchor="end" style={{ fill: MUTED }}>
           {(forecast ? forecast[forecast.length - 1] : last).date.slice(5)}
         </text>
         {data.length > 2 && (() => {
           const mid = data[Math.floor((data.length - 1) / 2)]
           const midX = px(new Date(mid.date).getTime())
           return midX > M.left + 40 && midX < W - M.right - 40 ? (
-            <text x={midX} y={H - 8} fontSize="10" fill={MUTED} textAnchor="middle">{mid.date.slice(5)}</text>
+            <text x={midX} y={H - 8} fontSize="10" textAnchor="middle" style={{ fill: MUTED }}>{mid.date.slice(5)}</text>
           ) : null
         })()}
         {/* 面積淡染（10%）＋ 2px 線 */}
-        <path d={areaPath} fill={color} opacity="0.1" />
-        <path d={linePath} fill="none" stroke={color} strokeWidth="2"
-          strokeLinejoin="round" strokeLinecap="round" />
+        <path d={areaPath} style={{ fill: color, opacity: 0.1 }} />
+        <path d={linePath} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"
+          style={{ fill: 'none', stroke: color }} />
         {/* 外推預測：虛線＋空心端點（圖例說明「預測」） */}
         {forecastPath && (
           <>
-            <path d={forecastPath} fill="none" stroke={color} strokeWidth="2"
-              strokeDasharray="5 4" strokeLinecap="round" opacity="0.75" />
+            <path d={forecastPath} strokeWidth="2" strokeDasharray="5 4" strokeLinecap="round"
+              style={{ fill: 'none', stroke: color, opacity: 0.75 }} />
             {forecast.slice(-1).map((f) => (
               <circle key={f.date} cx={px(new Date(f.date).getTime())}
-                cy={py(f.value)} r="4" fill={SURFACE} stroke={color} strokeWidth="2" />
+                cy={py(f.value)} r="4" strokeWidth="2"
+                style={{ fill: SURFACE, stroke: color }} />
             ))}
             <text x={W - M.right} y={py(forecast[forecast.length - 1].value) - 10}
-              fontSize="10" fill={MUTED} textAnchor="end">預測 {fmt(forecast[forecast.length - 1].value)}{unit}</text>
+              fontSize="10" textAnchor="end" style={{ fill: MUTED }}>預測 {fmt(forecast[forecast.length - 1].value)}{unit}</text>
           </>
         )}
-        {/* 端點標記：8px 點＋2px 表面環＋端點值（文字用 ink，非系列色） */}
-        <circle cx={px(histXs[histXs.length - 1])} cy={py(last.value)} r="4" fill={color}
-          stroke={SURFACE} strokeWidth="2" />
+        {/* 端點標記：實心點＋2px 表面環＋端點值（文字用 ink，非系列色） */}
+        <circle cx={px(histXs[histXs.length - 1])} cy={py(last.value)} r="4" strokeWidth="2"
+          style={{ fill: color, stroke: SURFACE }} />
         {!forecastPath && (
           <text x={px(histXs[histXs.length - 1]) + 8} y={py(last.value) + 3.5} fontSize="11"
-            fill={INK} fontWeight="600" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            fontWeight="600" style={{ fill: INK, fontVariantNumeric: 'tabular-nums' }}>
             {fmt(last.value)}{unit}
           </text>
         )}
@@ -118,20 +122,17 @@ export default function TrendChart({ title, unit, data = [], color, forecast = n
         {hover !== null && (
           <>
             <line x1={px(histXs[hover])} x2={px(histXs[hover])} y1={M.top} y2={H - M.bottom}
-              stroke={BASE} strokeWidth="1" />
-            <circle cx={px(histXs[hover])} cy={py(data[hover].value)} r="5" fill={color}
-              stroke={SURFACE} strokeWidth="2" />
+              strokeWidth="1" style={{ stroke: BASE }} />
+            <circle cx={px(histXs[hover])} cy={py(data[hover].value)} r="5" strokeWidth="2"
+              style={{ fill: color, stroke: SURFACE }} />
           </>
         )}
       </svg>
       {hover !== null && (
-        <div style={{
-          position: 'absolute', pointerEvents: 'none',
-          left: `${(px(histXs[hover]) / W) * 100}%`, top: `${(py(data[hover].value) / H) * 100}%`,
-          transform: 'translate(-50%, -130%)',
-          background: INK, color: '#fff', borderRadius: 6, padding: '3px 8px',
-          fontSize: 11, whiteSpace: 'nowrap',
-        }}>
+        <div className="chart-tip"
+          style={{
+            left: `${(px(histXs[hover]) / W) * 100}%`, top: `${(py(data[hover].value) / H) * 100}%`,
+          }}>
           {data[hover].date} · {fmt(data[hover].value)}{unit}
         </div>
       )}

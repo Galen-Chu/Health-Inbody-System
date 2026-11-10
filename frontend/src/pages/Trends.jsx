@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client.js'
 import TrendChart from '../components/TrendChart.jsx'
 
+// 系列色＝Uniconsign 色階，經 dataviz 六項檢查驗證（見 global.css --chart-*）
 const SERIES = [
-  { key: 'weight_kg', title: '體重 Weight', unit: ' kg', color: '#2a78d6' },
-  { key: 'body_fat_pct', title: '體脂率 Body Fat', unit: ' %', color: '#eb6834' },
-  { key: 'muscle_mass_kg', title: '肌肉量 Muscle Mass', unit: ' kg', color: '#1baf7a' },
+  { key: 'weight_kg', title: '體重 Weight', unit: ' kg', color: 'var(--chart-c1)' },
+  { key: 'body_fat_pct', title: '體脂率 Body Fat', unit: ' %', color: 'var(--chart-c2)' },
+  { key: 'muscle_mass_kg', title: '肌肉量 Muscle Mass', unit: ' kg', color: 'var(--chart-c3)' },
 ]
 
 const RANGES = [['30', '30 天'], ['90', '90 天'], ['all', '全部']]
@@ -34,7 +35,7 @@ export default function Trends() {
         muscle_mass_kg: trends[2].forecast,
       })
     })
-    .catch(() => setMessage('載入失敗，後端未啟動？'))
+    .catch((e) => setMessage(`載入失敗：${e.message || e}`))
 
   useEffect(() => { load() }, [])
 
@@ -54,31 +55,32 @@ export default function Trends() {
   return (
     <div>
       <h2>身體組成趨勢 Body Trends</h2>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-        {RANGES.map(([key, label]) => (
-          <button key={key} onClick={() => setRange(key)}
-            style={{ padding: '4px 12px', cursor: 'pointer',
-              fontWeight: range === key ? 'bold' : 'normal',
-              borderBottom: range === key ? '2px solid #2a6' : 'none' }}>
-            {label}
-          </button>
-        ))}
+
+      <div className="card">
+        <div className="form-inline" style={{ marginBottom: 10 }}>
+          <span className="hint">範圍</span>
+          <div className="seg">
+            {RANGES.map(([key, label]) => (
+              <button key={key} className={range === key ? 'active' : ''}
+                onClick={() => setRange(key)}>{label}</button>
+            ))}
+          </div>
+        </div>
+        <div className="form-inline">
+          <input type="date" className="input" value={form.measured_on}
+            onChange={(e) => setForm({ ...form, measured_on: e.target.value })} />
+          <input type="number" step="0.1" className="input" placeholder="體重 kg*" style={{ width: 110 }}
+            value={form.weight_kg} onChange={(e) => setForm({ ...form, weight_kg: e.target.value })} />
+          <input type="number" step="0.1" className="input" placeholder="體脂 %" style={{ width: 100 }}
+            value={form.body_fat_pct} onChange={(e) => setForm({ ...form, body_fat_pct: e.target.value })} />
+          <input type="number" step="0.1" className="input" placeholder="肌肉量 kg" style={{ width: 120 }}
+            value={form.muscle_mass_kg} onChange={(e) => setForm({ ...form, muscle_mass_kg: e.target.value })} />
+          <button onClick={submit} className="btn btn-primary">記錄量測</button>
+          {message && <span className={message.startsWith('⚠') ? 'msg-warn' : 'msg-ok'}>{message}</span>}
+        </div>
       </div>
 
-      <div style={{ marginBottom: 20, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <input type="date" value={form.measured_on}
-          onChange={(e) => setForm({ ...form, measured_on: e.target.value })} />
-        <input type="number" step="0.1" placeholder="體重 kg*" style={{ width: 100 }}
-          value={form.weight_kg} onChange={(e) => setForm({ ...form, weight_kg: e.target.value })} />
-        <input type="number" step="0.1" placeholder="體脂 %" style={{ width: 90 }}
-          value={form.body_fat_pct} onChange={(e) => setForm({ ...form, body_fat_pct: e.target.value })} />
-        <input type="number" step="0.1" placeholder="肌肉量 kg" style={{ width: 110 }}
-          value={form.muscle_mass_kg} onChange={(e) => setForm({ ...form, muscle_mass_kg: e.target.value })} />
-        <button onClick={submit} style={{ padding: '6px 20px', cursor: 'pointer' }}>記錄量測</button>
-        {message && <span style={{ color: '#2a6' }}>{message}</span>}
-      </div>
-
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 8 }}>
         {SERIES.map(({ key, title, unit, color }) => {
           const cutoff = range === 'all' ? null
             : new Date(Date.now() - Number(range) * 86400_000).toISOString().slice(0, 10)
@@ -94,25 +96,24 @@ export default function Trends() {
 
       <h3>量測歷史</h3>
       {metrics.length > 0 ? (
-        <table style={{ borderCollapse: 'collapse' }}>
-          <thead><tr>
-            <th style={{ textAlign: 'left', padding: 6 }}>日期</th>
-            <th style={{ padding: 6 }}>體重 kg</th>
-            <th style={{ padding: 6 }}>體脂 %</th>
-            <th style={{ padding: 6 }}>肌肉量 kg</th>
-          </tr></thead>
-          <tbody>
-            {[...metrics].reverse().map((m) => (
-              <tr key={m.id}>
-                <td style={{ padding: 6 }}>{m.measured_on}</td>
-                <td style={{ textAlign: 'right', padding: 6 }}>{m.weight_kg}</td>
-                <td style={{ textAlign: 'right', padding: 6 }}>{m.body_fat_pct ?? '—'}</td>
-                <td style={{ textAlign: 'right', padding: 6 }}>{m.muscle_mass_kg ?? '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : <p style={{ color: '#57606a' }}>尚無量測資料，上方表單記錄第一筆。</p>}
+        <div className="table-wrap">
+          <table className="table">
+            <thead><tr>
+              <th>日期</th><th className="num">體重 kg</th><th className="num">體脂 %</th><th className="num">肌肉量</th>
+            </tr></thead>
+            <tbody>
+              {[...metrics].reverse().map((m) => (
+                <tr key={m.id}>
+                  <td>{m.measured_on}</td>
+                  <td className="num">{m.weight_kg}</td>
+                  <td className="num">{m.body_fat_pct ?? '—'}</td>
+                  <td className="num">{m.muscle_mass_kg ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : <p className="empty">尚無量測資料，上方表單記錄第一筆。</p>}
     </div>
   )
 }

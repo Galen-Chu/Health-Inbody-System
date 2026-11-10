@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client.js'
+import IconOpen from '../icons/IconOpen.js'
 
 const FIELDS = [
   ['name', '姓名', 'text'],
@@ -58,63 +59,63 @@ export default function Settings() {
 
   return (
     <div>
-      <h2>個人設定 Settings</h2>
+      <h2>設定 Settings</h2>
 
-      <h3 style={{ marginTop: 8 }}>連線設定 Connection</h3>
-      <p style={{ fontSize: 13, color: '#57606a' }}>
-        部署端（Vercel）有設 HIS_API_TOKEN 時必填——填部署時設定的同一組值；本機開發留空即可。
-      </p>
-      <input
-        type="password" placeholder="API Token" style={{ width: 280 }}
-        defaultValue={localStorage.getItem('his_api_token') || ''}
-        onChange={onTokenChange} />
-      {tokenMsg && <span style={{ marginLeft: 12, color: '#2a6', fontSize: 13 }}>{tokenMsg}</span>}
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>連線設定 Connection</h3>
+        <p className="hint">
+          部署端（Vercel）有設 HIS_API_TOKEN 時必填——填部署時設定的同一組值；本機開發留空即可。
+        </p>
+        <input
+          type="password" placeholder="API Token" className="input" style={{ width: 280 }}
+          defaultValue={localStorage.getItem('his_api_token') || ''}
+          onChange={onTokenChange} />
+        {tokenMsg && <span className="msg-ok" style={{ marginLeft: 12 }}>{tokenMsg}</span>}
+      </div>
 
-      <h3 style={{ marginTop: 32 }}>個人資料 Profile</h3>
-      {profile ? (
-        <>
-          <table><tbody>
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>個人資料 Profile</h3>
+        {profile ? (
+          <>
             {FIELDS.map(([key, label, type]) => (
-              <tr key={key}>
-                <td style={{ padding: 6 }}>{label}</td>
-                <td style={{ padding: 6 }}>
-                  <input type={type} value={profile[key] ?? ''}
-                    onChange={(e) => setProfile({ ...profile, [key]: e.target.value })} />
-                </td>
-              </tr>
+              <div className="field-row" key={key}>
+                <label htmlFor={`f-${key}`}>{label}</label>
+                <input id={`f-${key}`} type={type} className="input"
+                  value={profile[key] ?? ''}
+                  onChange={(e) => setProfile({ ...profile, [key]: e.target.value })} />
+              </div>
             ))}
             {SELECTS.map(([key, label, options]) => (
-              <tr key={key}>
-                <td style={{ padding: 6 }}>{label}</td>
-                <td style={{ padding: 6 }}>
-                  <select value={profile[key]}
-                    onChange={(e) => setProfile({ ...profile, [key]: e.target.value })}>
-                    {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                </td>
-              </tr>
+              <div className="field-row" key={key}>
+                <label htmlFor={`s-${key}`}>{label}</label>
+                <select id={`s-${key}`} className="select" value={profile[key]}
+                  onChange={(e) => setProfile({ ...profile, [key]: e.target.value })}>
+                  {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </div>
             ))}
-          </tbody></table>
-          <button onClick={save} style={{ marginTop: 12, padding: '8px 24px', cursor: 'pointer' }}>儲存</button>
-          {message && <span style={{ marginLeft: 12 }}>{message}</span>}
-        </>
-      ) : (
-        <p style={{ fontSize: 14, color: '#57606a' }}>
-          {profileMsg}{' '}
-          {profileMsg !== '載入中…'
-            && <button onClick={loadProfile} style={{ padding: '4px 12px', cursor: 'pointer' }}>重新載入</button>}
-        </p>
-      )}
+            <div style={{ marginTop: 12 }}>
+              <button onClick={save} className="btn btn-primary">儲存</button>
+              {message && <span style={{ marginLeft: 12 }} className={message.startsWith('⚠') ? 'msg-err' : 'msg-ok'}>{message}</span>}
+            </div>
+          </>
+        ) : (
+          <p className="empty">
+            {profileMsg}{' '}
+            {profileMsg !== '載入中…' && <button onClick={loadProfile} className="btn btn-secondary btn-sm">重新載入</button>}
+          </p>
+        )}
+      </div>
 
-      <h3 style={{ marginTop: 32 }}>資料匯出 Data Export</h3>
-      <p style={{ fontSize: 13, color: '#57606a' }}>
-        全量下載量測、餐點與每日記錄（CSV 為三表 ZIP）——換機／備份用。
-      </p>
-      <button onClick={() => api.exportData('json').catch((e) => setTokenMsg(`⚠ ${e}`))}
-        style={{ padding: '6px 16px', cursor: 'pointer' }}>下載 JSON</button>
-      {' '}
-      <button onClick={() => api.exportData('csv').catch((e) => setTokenMsg(`⚠ ${e}`))}
-        style={{ padding: '6px 16px', cursor: 'pointer' }}>下載 CSV (ZIP)</button>
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>資料匯出 Data Export</h3>
+        <p className="hint">全量下載量測、餐點與每日記錄（CSV 為三表 ZIP）——換機／備份用。</p>
+        <button onClick={() => api.exportData('json').catch((e) => setTokenMsg(`⚠ ${e}`))}
+          className="btn btn-secondary"><IconOpen size={16} /> 下載 JSON</button>
+        {' '}
+        <button onClick={() => api.exportData('csv').catch((e) => setTokenMsg(`⚠ ${e}`))}
+          className="btn btn-secondary"><IconOpen size={16} /> 下載 CSV (ZIP)</button>
+      </div>
     </div>
   )
 }
