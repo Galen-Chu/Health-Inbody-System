@@ -73,6 +73,16 @@ export default function Settings() {
           setTokenMsg(v ? '✓ 已儲存（重新整理後生效）' : '已清除')
         }} />
       {tokenMsg && <span style={{ marginLeft: 12, color: '#2a6', fontSize: 13 }}>{tokenMsg}</span>}
+
+      <h3 style={{ marginTop: 32 }}>資料匯出 Data Export</h3>
+      <p style={{ fontSize: 13, color: '#57606a' }}>
+        全量下載量測、餐點與每日記錄（CSV 為三表 ZIP）——換機／備份用。
+      </p>
+      <button onClick={() => api.exportData('json').catch((e) => setTokenMsg(`⚠ ${e}`))}
+        style={{ padding: '6px 16px', cursor: 'pointer' }}>下載 JSON</button>
+      {' '}
+      <button onClick={() => api.exportData('csv').catch((e) => setTokenMsg(`⚠ ${e}`))}
+        style={{ padding: '6px 16px', cursor: 'pointer' }}>下載 CSV (ZIP)</button>
     </div>
   )
 }

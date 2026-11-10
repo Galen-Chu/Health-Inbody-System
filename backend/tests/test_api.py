@@ -65,3 +65,29 @@ def test_body_metrics_roundtrip():
     assert len(items) >= 2
     # API 依日期新→舊排序
     assert items[0]["measured_on"] >= items[-1]["measured_on"]
+
+
+class TestExport:
+    def test_export_json_full_structure(self):
+        resp = client.get("/api/export")
+        assert resp.status_code == 200
+        assert resp.headers["content-disposition"].endswith('his_export.json"')
+        dump = resp.json()
+        for key in ("exported_at", "profile", "body_metrics", "meals", "daily_records"):
+            assert key in dump
+        assert len(dump["body_metrics"]) >= 2   # test_body_metrics_roundtrip 建的
+
+    def test_export_csv_zip(self):
+        import io
+        import zipfile
+
+        resp = client.get("/api/export?format=csv")
+        assert resp.status_code == 200
+        zf = zipfile.ZipFile(io.BytesIO(resp.content))
+        names = set(zf.namelist())
+        assert names == {"his_body_metrics.csv", "his_meals.csv", "his_daily_records.csv"}
+        header = zf.read("his_body_metrics.csv").decode("utf-8").splitlines()[0]
+        assert "measured_on" in header and "weight_kg" in header
+
+    def test_export_bad_format(self):
+        assert client.get("/api/export?format=xml").status_code == 422

@@ -12,7 +12,7 @@ const RANGES = [['30', '30 天'], ['90', '90 天'], ['all', '全部']]
 
 export default function Trends() {
   const [metrics, setMetrics] = useState([])
-  const [weightForecast, setWeightForecast] = useState(null)
+  const [forecasts, setForecasts] = useState({})   // {weight_kg: [...], ...}
   const [range, setRange] = useState('all')
   const [message, setMessage] = useState('')
   const [form, setForm] = useState({
@@ -20,10 +20,19 @@ export default function Trends() {
     weight_kg: '', body_fat_pct: '', muscle_mass_kg: '',
   })
 
-  const load = () => Promise.all([api.getBodyMetrics(), api.getWeightTrend()])
-    .then(([list, trend]) => {
+  const load = () => Promise.all([
+    api.getBodyMetrics(),
+    api.getWeightTrend('weight_kg'),
+    api.getWeightTrend('body_fat_pct'),
+    api.getWeightTrend('muscle_mass_kg'),
+  ])
+    .then(([list, ...trends]) => {
       setMetrics([...list].reverse())   // API 回傳新→舊，圖表要舊→新
-      setWeightForecast(trend.forecast)
+      setForecasts({
+        weight_kg: trends[0].forecast,
+        body_fat_pct: trends[1].forecast,
+        muscle_mass_kg: trends[2].forecast,
+      })
     })
     .catch(() => setMessage('載入失敗，後端未啟動？'))
 
@@ -75,7 +84,7 @@ export default function Trends() {
             : new Date(Date.now() - Number(range) * 86400_000).toISOString().slice(0, 10)
           return (
             <TrendChart key={key} title={title} unit={unit} color={color}
-              forecast={key === 'weight_kg' ? weightForecast : null}
+              forecast={forecasts[key] || null}
               data={metrics
                 .filter((m) => m[key] != null && (!cutoff || m.measured_on >= cutoff))
                 .map((m) => ({ date: m.measured_on, value: m[key] }))} />

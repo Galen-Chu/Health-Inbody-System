@@ -5,7 +5,7 @@ MealEntry 快照營養數值（食物資料庫重新匯入後歷史記錄不變�
 from datetime import date as date_type
 
 from sqlalchemy import Date, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 
@@ -35,6 +35,7 @@ class MealEntry(Base):
     meal: Mapped[str] = mapped_column(String(16), default="any")  # breakfast/lunch/dinner/snack/any
     food_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("foods.id"), nullable=True)
     food_name: Mapped[str] = mapped_column(Text)
+    food: Mapped["Food"] = relationship()   # 供六大類自動估算關聯查詢
     grams: Mapped[float] = mapped_column(Float)
     calories_kcal: Mapped[float] = mapped_column(Float)
     water_g: Mapped[float] = mapped_column(Float)

@@ -82,7 +82,19 @@ export default function DailyLog() {
         日期 <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       </label>
 
-      <h3>六大類份量</h3>
+      <h3>六大類份量
+        <button onClick={async () => {
+          const s = await api.getSummary(date)
+          if (s.servings_estimate && Object.keys(s.servings_estimate).length) {
+            setServings({ ...servings, ...s.servings_estimate })
+            setMessage('✓ 已從餐點自動估算六大類（可再手動微調）')
+          } else {
+            setMessage('本日尚無餐點記錄可估算')
+          }
+        }} style={{ marginLeft: 12, fontSize: 12, padding: '2px 10px', cursor: 'pointer' }}>
+          從餐點自動估算
+        </button>
+      </h3>
       <table style={{ borderCollapse: 'collapse' }}><tbody>
         {GROUPS.map(([key, label]) => (
           <tr key={key}>

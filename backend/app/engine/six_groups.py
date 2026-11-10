@@ -45,3 +45,33 @@ def achievement(intake: dict, targets: dict) -> dict:
         eaten = intake.get(group, 0.0)
         result[group] = round(eaten / target * 100.0, 1) if target else None
     return result
+
+
+# 每份量對應公克數（粗估，國民飲食指南份量換算的簡化版）：
+# 全榖雜糧 1 碗≈200g 熟飯；豆魚蛋肉 1 份≈35g 熟肉；乳品 1 杯≈240g；
+# 蔬菜 1 份≈100g 生重；水果 1 份≈100g 可食部；油脂 1 茶匙≈5g
+# （堅果併入油脂類，以 15g≈1 份概算——文件標明為粗估，供達成率參考）
+GRAMS_PER_SERVING = {
+    "grains": 200.0,
+    "protein": 35.0,
+    "dairy": 240.0,
+    "vegetables": 100.0,
+    "fruits": 100.0,
+    "oils": 5.0,
+}
+
+
+def estimate_servings(meals: list) -> dict:
+    """從餐點（{category, grams}）自動推估六大類份量.
+
+    other 類不計；回傳 {grains: 碗, ...}（浮點）。粗估——與手動輸入並存，
+    手動值優先.
+    """
+    totals = {}
+    for meal in meals:
+        cat = meal.get("category")
+        grams = meal.get("grams", 0.0)
+        if cat not in GRAMS_PER_SERVING or grams <= 0:
+            continue
+        totals[cat] = totals.get(cat, 0.0) + grams / GRAMS_PER_SERVING[cat]
+    return {k: round(v, 2) for k, v in totals.items()}

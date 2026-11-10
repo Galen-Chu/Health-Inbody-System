@@ -68,3 +68,13 @@ def test_trend_endpoint():
     data = client_get("/api/trend/weight").json()
     assert data["method"] == "holt-linear"
     assert data["forecast"] and len(data["forecast"]) == 14
+
+
+def test_trend_metric_param():
+    # 預設 weight_kg → 有預測；body_fat_pct 也應可用且非 null 過濾
+    r = client_get("/api/trend/weight?metric=body_fat_pct")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["method"] in {"holt-linear", "insufficient-data"}
+    bad = client_get("/api/trend/weight?metric=height")
+    assert bad.status_code == 422

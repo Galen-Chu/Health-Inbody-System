@@ -99,3 +99,47 @@ def test_recent_foods():
     ids = [f["id"] for f in recents]
     # 最新使用者排最前（egg 最後記錄）
     assert ids.index(egg["id"]) < ids.index(chicken["id"])
+
+
+def test_summary_servings_estimate():
+    rice = _first_food("大麥仁")          # grains
+    chicken = _first_food("去皮雞胸肉")   # protein
+    day = "2026-11-10"
+    client.post("/api/meals", json={
+        "record_date": day, "food_id": rice["id"], "grams": 200})       # 1 碗
+    client.post("/api/meals", json={
+        "record_date": day, "food_id": chicken["id"], "grams": 70})     # 2 份
+    data = client.get(f"/api/summary/{day}").json()
+    est = data["servings_estimate"]
+    assert est["grains"] == 1.0
+    assert est["protein"] == 2.0
+
+
+def _food_by_category(category):
+    return client.get("/api/foods", params={"category": category, "limit": 1}).json()[0]
+
+
+def test_recommendations_uses_estimate_when_manual_empty():
+    """只記餐點、沒填六大類 → 建議用估算：protein 唯一不足時必須被提出.
+
+    區別性設計：其他五類都吃到目標以上，唯獨 protein 低於 50%——
+    若無 fallback（intake={} 全零），前兩名缺口會是隨機的 0% 類別.
+    """
+    day = "2026-11-11"
+    plan = [  # (類別, 公克)——tier 2000 目標：grains 3.5碗/dairy 1.5杯/veg 4份/fruit 3份/oils 6茶匙
+        ("grains", 800), ("dairy", 400), ("vegetables", 450),
+        ("fruits", 350), ("oils", 40), ("protein", 60),   # protein 1.7/6 份=28%
+    ]
+    for cat, grams in plan:
+        food = _food_by_category(cat)
+        client.post("/api/meals", json={
+            "record_date": day, "food_id": food["id"], "grams": grams})
+    client.post("/api/records", json={
+        "record_date": day, "servings": {}, "water_ml": 2000})   # 手動為空
+
+    recs = client.get(f"/api/recommendations/{day}").json()["recommendations"]
+    group_recs = [r["type"] for r in recs if r["type"].startswith("group:")]
+    # 唯一 <50% 的類別是 protein → 它必須出現在缺口建議裡
+    assert "group:protein" in group_recs
+    # 其他五類皆已達標 → 不應被列為缺口
+    assert group_recs == ["group:protein"]

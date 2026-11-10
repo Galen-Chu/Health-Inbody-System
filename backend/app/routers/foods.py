@@ -4,6 +4,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import desc, func, select
+from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -57,6 +58,7 @@ class DaySummary(BaseModel):
     water_from_food_ml: float
     water_drink_ml: int
     macros: dict          # {protein_g, carb_g, fat_g}
+    servings_estimate: dict = {}   # 從餐點自動推估的六大類份量（粗估）
     meals: list[MealOut]
 
 
@@ -139,9 +141,18 @@ def list_meals(day: date, db: Session = Depends(get_db)):
                            .order_by(MealEntry.id)))
 
 
+def _servings_estimate(entries) -> dict:
+    """餐點 → 六大類份量粗估（需要食物類別，entries 需先關聯 Food）."""
+    from app.engine.six_groups import estimate_servings
+    return estimate_servings([
+        {"category": e.food.category if e.food else None, "grams": e.grams}
+        for e in entries])
+
+
 def _day_context(db: Session, day: date):
     """summary / recommendations 共用：當日餐點、記錄、個人檔與熱量目標."""
     entries = list(db.scalars(select(MealEntry)
+                              .options(joinedload(MealEntry.food))
                               .where(MealEntry.record_date == day)
                               .order_by(MealEntry.id)))
 
@@ -173,6 +184,7 @@ def day_summary(day: date, db: Session = Depends(get_db)):
             "carb_g": round(sum(e.carb_g for e in entries), 1),
             "fat_g": round(sum(e.fat_g for e in entries), 1),
         },
+        servings_estimate=_servings_estimate(entries),
         meals=entries,
     )
 
@@ -187,7 +199,9 @@ def recommendations(day: date, db: Session = Depends(get_db)):
     water_food = sum(e.water_g for e in entries)
     water_total = water_food + (record.water_ml if record else 0)
     macros_protein = sum(e.protein_g for e in entries)
-    intake = (record.servings if record else {}) or {}
+    manual = (record.servings if record else {}) or {}
+    # 手動輸入優先；完全沒填時用餐點自動估算（閉合記錄→建議迴路）
+    intake = manual if manual else _servings_estimate(entries)
 
     recs = recommender.generate_recommendations(
         calories_total=calories,

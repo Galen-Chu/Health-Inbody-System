@@ -1,5 +1,6 @@
 """API routers · profile / records / metrics."""
-from datetime import date
+import json
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,6 +12,7 @@ from app.engine import bmr as bmr_engine
 from app.engine import six_groups, tdee as tdee_engine
 from app.engine import water as water_engine
 from app.models import BodyMetric, DailyRecord, Profile
+from app.models_food import MealEntry
 from app.schemas import (BodyMetricIn, BodyMetricOut, DailyRecordIn,
                          DailyRecordOut, MetricsOut, ProfileIn, ProfileOut)
 
@@ -120,16 +122,76 @@ def list_body_metrics(db: Session = Depends(get_db)):
 
 
 @router.get("/trend/weight")
-def weight_trend(horizon: int = 14, db: Session = Depends(get_db)):
-    """體重趨勢＋Holt 外推預測（M6 前置·無 ML 版）."""
+def weight_trend(metric: str = "weight_kg", horizon: int = 14,
+                 db: Session = Depends(get_db)):
+    """身體組成趨勢＋Holt 外推（metric: weight_kg|body_fat_pct|muscle_mass_kg）."""
     from app.engine.trend import forecast_with_dates
+
+    if metric not in ("weight_kg", "body_fat_pct", "muscle_mass_kg"):
+        raise HTTPException(422, f"unknown metric: {metric}")
 
     metrics = list(db.scalars(select(BodyMetric)
                               .order_by(BodyMetric.measured_on)))
-    history = [{"date": m.measured_on.isoformat(), "value": m.weight_kg}
-               for m in metrics]
+    history = [{"date": m.measured_on.isoformat(),
+                "value": getattr(m, metric)}
+               for m in metrics if getattr(m, metric) is not None]
     forecast = forecast_with_dates(
         [h["date"] for h in history], [h["value"] for h in history],
         horizon=horizon)
     return {"history": history, "forecast": forecast,
             "method": "holt-linear" if forecast else "insufficient-data"}
+
+
+@router.get("/export")
+def export_data(format: str = "json", db: Session = Depends(get_db)):
+    """全量資料匯出（M7 前置）：json=單一檔；csv=四表 zip."""
+    import io
+    import zipfile
+
+    from fastapi.responses import Response
+
+    profile = db.scalar(select(Profile).where(Profile.id == 1))
+    metrics = list(db.scalars(select(BodyMetric)
+                              .order_by(BodyMetric.measured_on)))
+    meals = list(db.scalars(select(MealEntry)
+                            .order_by(MealEntry.record_date, MealEntry.id)))
+    records = list(db.scalars(select(DailyRecord)
+                              .order_by(DailyRecord.record_date)))
+
+    if format == "json":
+        dump = {
+            "exported_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "profile": {c.name: getattr(profile, c.name) for c in profile.__table__.columns} if profile else None,
+            "body_metrics": [{c.name: str(getattr(m, c.name)) if c.name == "measured_on"
+                              else getattr(m, c.name) for c in m.__table__.columns} for m in metrics],
+            "meals": [{c.name: str(getattr(e, c.name)) if c.name == "record_date"
+                       else getattr(e, c.name) for c in e.__table__.columns} for e in meals],
+            "daily_records": [{c.name: str(getattr(r, c.name)) if c.name == "record_date"
+                               else getattr(r, c.name) for c in r.__table__.columns} for r in records],
+        }
+        return Response(
+            json.dumps(dump, ensure_ascii=False, indent=2),
+            media_type="application/json",
+            headers={"Content-Disposition": 'attachment; filename="his_export.json"'})
+
+    if format == "csv":
+        import csv as csv_mod
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for name, rows, cols in (
+                    ("body_metrics", metrics, ["measured_on", "weight_kg", "body_fat_pct", "muscle_mass_kg"]),
+                    ("meals", meals, ["record_date", "meal", "food_name", "grams",
+                                      "calories_kcal", "protein_g", "carb_g", "fat_g"]),
+                    ("daily_records", records, ["record_date", "servings", "water_ml", "note"])):
+                s = io.StringIO()
+                writer = csv_mod.writer(s)
+                writer.writerow(cols)
+                for row in rows:
+                    writer.writerow([str(getattr(row, c)) for c in cols])
+                zf.writestr(f"his_{name}.csv", s.getvalue())
+        return Response(
+            buf.getvalue(),
+            media_type="application/zip",
+            headers={"Content-Disposition": 'attachment; filename="his_export.zip"'})
+
+    raise HTTPException(422, f"unknown format: {format} (json|csv)")

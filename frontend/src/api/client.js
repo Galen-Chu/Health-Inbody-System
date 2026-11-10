@@ -34,6 +34,21 @@ export const api = {
   deleteMeal: (id) => request(`/meals/${id}`, { method: 'DELETE' }),
   getSummary: (day) => request(`/summary/${day}`),
   getRecommendations: (day) => request(`/recommendations/${day}`),
-  getWeightTrend: (horizon = 14) => request(`/trend/weight?horizon=${horizon}`),
+  getWeightTrend: (metric = 'weight_kg', horizon = 14) =>
+    request(`/trend/weight?metric=${metric}&horizon=${horizon}`),
   getRecentFoods: () => request('/foods/recent'),
+  // 資料匯出：帶認證的 blob 下載（<a> 標籤無法帶 Authorization）
+  exportData: async (format = 'json') => {
+    const resp = await fetch(`/api/export?format=${format}`, {
+      headers: authHeaders(),
+    })
+    if (!resp.ok) throw new Error(`export failed: ${resp.status}`)
+    const blob = await resp.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `his_export.${format === 'csv' ? 'zip' : 'json'}`
+    a.click()
+    URL.revokeObjectURL(url)
+  },
 }
