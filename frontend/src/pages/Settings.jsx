@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api/client.js'
 import IconOpen from '../icons/IconOpen.js'
 
@@ -20,10 +20,12 @@ export default function Settings() {
   const [profile, setProfile] = useState(null)
   const [profileMsg, setProfileMsg] = useState('')
   const [message, setMessage] = useState('')
-  const [tokenMsg, setTokenMsg] = useState('')
+  const [connected, setConnected] = useState(null)   // null=檢查中
+  const [tokenInput, setTokenInput] = useState('')
+  const [loginMsg, setLoginMsg] = useState('')
   const [importMode, setImportMode] = useState('merge')
   const [importMsg, setImportMsg] = useState('')
-  const retryTimer = useRef(null)
+  const [exportMsg, setExportMsg] = useState('')
 
   const loadProfile = () => {
     setProfile(null)
@@ -33,21 +35,50 @@ export default function Settings() {
       .catch((e) => {
         const msg = String(e.message || e)
         setProfileMsg(msg.includes('401')
-          ? '未連線（401）——請在上方「連線設定」填入 API Token（＝部署端 HIS_API_TOKEN 的值），存好後此處會自動重試'
+          ? '未登入——請在上方「連線設定」登入後，此處會自動載入'
           : `載入失敗：${msg}`)
       })
   }
-  useEffect(loadProfile, [])
-  useEffect(() => () => clearTimeout(retryTimer.current), [])
 
-  // token 一變（貼上/修改）就存好並自動重試連線，不再需要手動重新整理
-  const onTokenChange = (e) => {
-    const v = e.target.value.trim()
-    if (v) localStorage.setItem('his_api_token', v)
-    else localStorage.removeItem('his_api_token')
-    setTokenMsg(v ? '✓ 已儲存，自動重試連線…' : '已清除')
-    clearTimeout(retryTimer.current)
-    retryTimer.current = setTimeout(loadProfile, 600)
+  useEffect(() => {
+    (async () => {
+      // 舊版 localStorage token 一次性遷移：試著用它登入（成功即改用 cookie）
+      const legacy = localStorage.getItem('his_api_token')
+      if (legacy) {
+        await api.login(legacy).catch(() => {})
+        localStorage.removeItem('his_api_token')
+      }
+      try {
+        await api.getProfile()
+        setConnected(true)
+        loadProfile()
+      } catch {
+        setConnected(false)
+      }
+    })()
+  }, [])
+
+  const doLogin = async () => {
+    const v = tokenInput.trim()
+    if (!v) return
+    setLoginMsg('登入中…')
+    try {
+      await api.login(v)
+      setTokenInput('')
+      setLoginMsg('✓ 已登入——這台瀏覽器會記住一年')
+      setConnected(true)
+      loadProfile()
+    } catch (e) {
+      setLoginMsg(`⚠ ${e.message || e}`)
+    }
+  }
+
+  const doLogout = async () => {
+    await api.logout().catch(() => {})
+    setConnected(false)
+    setProfile(null)
+    setProfileMsg('')
+    setLoginMsg('')
   }
 
   const onImportFile = async (e) => {
@@ -82,14 +113,37 @@ export default function Settings() {
 
       <div className="card">
         <h3 style={{ marginTop: 0 }}>連線設定 Connection</h3>
-        <p className="hint">
-          部署端（Vercel）有設 HIS_API_TOKEN 時必填——填部署時設定的同一組值；本機開發留空即可。
-        </p>
-        <input
-          type="password" placeholder="API Token" className="input" style={{ width: 280 }}
-          defaultValue={localStorage.getItem('his_api_token') || ''}
-          onChange={onTokenChange} />
-        {tokenMsg && <span className="msg-ok" style={{ marginLeft: 12 }}>{tokenMsg}</span>}
+        {connected === null ? (
+          <p className="hint">檢查連線中…</p>
+        ) : connected ? (
+          <>
+            <p className="hint">
+              ✓ 已登入（此瀏覽器會記住一年，重開也不會消失）· 目前網址：{window.location.origin}
+            </p>
+            <button onClick={doLogout} className="btn btn-secondary">登出</button>
+          </>
+        ) : (
+          <>
+            <p className="hint">
+              部署端有設 HIS_API_TOKEN 時需登入一次（值＝Vercel 環境變數那組）；登入後這台瀏覽器會記住一年。
+              本機開發為開放模式，免登入。
+            </p>
+            <div className="form-inline">
+              <input
+                type="password" placeholder="API Token" className="input" style={{ width: 260 }}
+                value={tokenInput} onChange={(e) => setTokenInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') doLogin() }} />
+              <button onClick={doLogin} className="btn btn-primary">登入</button>
+              {loginMsg && (
+                <span className={loginMsg.startsWith('⚠') ? 'msg-err' : 'msg-ok'}>{loginMsg}</span>
+              )}
+            </div>
+            <p className="hint" style={{ marginBottom: 0 }}>
+              小提醒：token 跟著「網址」走——目前網址是 {window.location.origin}，
+              請一律使用主網域（加到書籤），從 Vercel 後台點進去的部署網址會是另一個站、不共用登入。
+            </p>
+          </>
+        )}
       </div>
 
       <div className="card">
@@ -129,11 +183,12 @@ export default function Settings() {
       <div className="card">
         <h3 style={{ marginTop: 0 }}>資料匯出 Data Export</h3>
         <p className="hint">全量下載量測、餐點與每日記錄（CSV 為三表 ZIP）——換機／備份用。</p>
-        <button onClick={() => api.exportData('json').catch((e) => setTokenMsg(`⚠ ${e}`))}
+        <button onClick={() => api.exportData('json').catch((e) => setExportMsg(`⚠ ${e.message || e}`))}
           className="btn btn-secondary"><IconOpen size={16} /> 下載 JSON</button>
         {' '}
-        <button onClick={() => api.exportData('csv').catch((e) => setTokenMsg(`⚠ ${e}`))}
+        <button onClick={() => api.exportData('csv').catch((e) => setExportMsg(`⚠ ${e.message || e}`))}
           className="btn btn-secondary"><IconOpen size={16} /> 下載 CSV (ZIP)</button>
+        {exportMsg && <span className="msg-err" style={{ marginLeft: 12 }}>{exportMsg}</span>}
       </div>
 
       <div className="card">

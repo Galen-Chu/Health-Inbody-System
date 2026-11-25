@@ -1,9 +1,12 @@
-"""API routers · profile / records / metrics."""
+"""API routers · profile / records / metrics / auth."""
 import json
+import os
+import secrets
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
+from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
@@ -20,6 +23,43 @@ from app.schemas import (BodyMetricIn, BodyMetricOut, DailyRecordIn,
 router = APIRouter(prefix="/api")
 
 FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+
+
+class TokenIn(BaseModel):
+    token: str
+
+
+@router.post("/auth/login")
+def login(payload: TokenIn, request: Request, response: Response):
+    """登入：核對 HIS_API_TOKEN → 核發 HttpOnly session cookie（效期一年）.
+
+    cookie 由瀏覽器自動保存與攜帶，免除每次貼 token 的麻煩；
+    Bearer header 認證（API 呼叫）維持並行支援.
+    """
+    expected = os.environ.get("HIS_API_TOKEN", "")
+    if not expected:
+        return {"ok": True, "auth_required": False}   # 本機開放模式
+    if not secrets.compare_digest(payload.token.encode("utf-8"),
+                                  expected.encode("utf-8")):
+        raise HTTPException(401, "token 不正確——請核對部署端 HIS_API_TOKEN 的值")
+    https = (request.url.scheme == "https"
+             or request.headers.get("x-forwarded-proto") == "https")
+    response.set_cookie("his_session", expected,
+                        max_age=365 * 24 * 3600, httponly=True,
+                        samesite="lax", secure=https)
+    return {"ok": True, "auth_required": True}
+
+
+@router.post("/auth/logout")
+def logout(response: Response):
+    response.delete_cookie("his_session")
+    return {"ok": True}
+
+
+@router.get("/auth/status")
+def auth_status():
+    """前端據此決定要不要顯示登入 UI."""
+    return {"auth_required": bool(os.environ.get("HIS_API_TOKEN", ""))}
 
 
 def _ensure_profile(db: Session) -> Profile:

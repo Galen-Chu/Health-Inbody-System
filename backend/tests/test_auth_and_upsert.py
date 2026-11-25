@@ -9,8 +9,10 @@ client = TestClient(app)
 
 @pytest.fixture
 def with_token(monkeypatch):
+    client.cookies.clear()   # cookie 狀態不應跨測試殘留
     monkeypatch.setenv("HIS_API_TOKEN", "test-secret-123")
     yield "test-secret-123"
+    client.cookies.clear()
     monkeypatch.delenv("HIS_API_TOKEN", raising=False)
 
 
@@ -36,6 +38,40 @@ class TestTokenAuth:
     def test_health_endpoint_stays_open(self, with_token):
         # 平台健康檢查不應被認證擋住
         assert client.get("/api/health").status_code == 200
+
+
+class TestCookieSession:
+    def test_login_sets_cookie_and_grants_access(self, with_token):
+        resp = client.post("/api/auth/login", json={"token": with_token})
+        assert resp.status_code == 200
+        assert resp.json()["ok"] is True
+        # 登入後不需要 Bearer header——cookie 自動攜帶
+        assert client.get("/api/profile").status_code == 200
+
+    def test_login_wrong_token_rejected(self, with_token):
+        resp = client.post("/api/auth/login", json={"token": "nope"})
+        assert resp.status_code == 401
+        assert client.get("/api/profile").status_code == 401
+
+    def test_login_open_mode_needs_nothing(self):
+        # 未設 HIS_API_TOKEN（本機模式）：登入直接成功且不需 cookie
+        resp = client.post("/api/auth/login", json={"token": "whatever"})
+        assert resp.status_code == 200
+        assert resp.json() == {"ok": True, "auth_required": False}
+
+    def test_logout_clears_session(self, with_token):
+        client.post("/api/auth/login", json={"token": with_token})
+        assert client.get("/api/profile").status_code == 200
+        client.post("/api/auth/logout")
+        assert client.get("/api/profile").status_code == 401
+
+    def test_auth_status_reflects_env(self, with_token):
+        assert client.get("/api/auth/status").json() == {"auth_required": True}
+
+    def test_bearer_still_works_without_cookie(self, with_token):
+        resp = client.get("/api/profile",
+                          headers={"Authorization": f"Bearer {with_token}"})
+        assert resp.status_code == 200
 
 
 class TestBodyMetricUpsert:

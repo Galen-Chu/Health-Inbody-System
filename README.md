@@ -61,7 +61,7 @@ CI（`.github/workflows/ci.yml`）每次 push/PR 跑後端 pytest ＋前端 `npm
 - [x] **M2b 食物資料庫**：食藥署 2,085 項食物（[政府開放資料](https://scidm.nchc.org.tw/dataset/best_wish8543)樞紐轉製）、搜尋 API、餐點×公克自動換算、每日彙總、首次啟動自動 seed
 - [x] **M3 趨勢可視化**：小倍數三圖（體重/體脂/肌肉量）、十字線 tooltip、`#hash` 深連結分頁
 - [x] **M4 建議引擎**：五條雙語規則（熱量平衡/水分缺口/蛋白質下限 1.0g/kg/六大類缺口前兩名/正向回饋）——`/api/recommendations/{日}`
-- [x] **M4.5 上雲前置**（2026-11）：Bearer token 認證（`HIS_API_TOKEN`，設定頁連線）；前端改版 Uniconsign 設計系統（深色模式）；`vercel.json` → Vercel Services 格式（前後端同域一次部署）
+- [x] **M4.5 上雲前置**（2026-11）：認證——Bearer token＋cookie session（`HIS_API_TOKEN`；設定頁登入一次，瀏覽器記住一年）；前端改版 Uniconsign 設計系統（深色模式）；`vercel.json` → Vercel Services 格式（前後端同域一次部署）
 - [x] **M6 前置**：Holt 線性外推——體重/體脂/肌肉量三指標預測（`/trend/weight?metric=`）
 - [x] **M7 前置**（2026-11-25）：全量匯出 `/api/export`（JSON 單檔／CSV ZIP）；**匯入還原 `/api/import`**（merge＝同日合併／replace＝整檔取代，冪等）；P0 修正——本地時區「今天」、食物搜尋 `ILIKE`（SQLite/Postgres 行為一致）、常數時間 token 比對
 

@@ -1,5 +1,6 @@
 // 輕量 API client — 開發期走 Vite proxy，建置後同源
-// 認證：Settings 頁設定的 token 存 localStorage，有設就自動帶 Bearer
+// 認證：登入後的 his_session cookie（HttpOnly，瀏覽器自動帶）為主；
+// localStorage 的舊 token 僅在設定頁做一次性遷移（登入成功後清除）
 function authHeaders() {
   const token = localStorage.getItem('his_api_token')
   return token ? { Authorization: `Bearer ${token}` } : {}
@@ -11,7 +12,7 @@ async function request(path, options = {}) {
     ...options,
   })
   if (resp.status === 401) {
-    throw new Error('401 未授權：請到「設定」頁填入 API Token（部署端 HIS_API_TOKEN）')
+    throw new Error('401 未授權：請到「設定」頁登入（Token＝部署端 HIS_API_TOKEN）')
   }
   if (!resp.ok) {
     let detail = ''
@@ -22,6 +23,10 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  // 認證 session（cookie 由瀏覽器自動保存，效期一年）
+  getAuthStatus: () => request('/auth/status'),
+  login: (token) => request('/auth/login', { method: 'POST', body: JSON.stringify({ token }) }),
+  logout: () => request('/auth/logout', { method: 'POST' }),
   getProfile: () => request('/profile'),
   saveProfile: (profile) => request('/profile', { method: 'PUT', body: JSON.stringify(profile) }),
   getMetrics: () => request('/metrics'),

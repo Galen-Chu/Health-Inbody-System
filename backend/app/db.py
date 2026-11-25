@@ -4,7 +4,10 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.config import DB_URL
 
-engine = create_engine(DB_URL, connect_args={"check_same_thread": False}
+# pool_pre_ping：Neon 免費版閒置會休眠，取用連線前先探活，
+# 避免冷喚醒期間的 stale connection 造成間歇性 500
+engine = create_engine(DB_URL, pool_pre_ping=True,
+                       connect_args={"check_same_thread": False}
                        if DB_URL.startswith("sqlite") else {})
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
