@@ -70,9 +70,9 @@ CI（`.github/workflows/ci.yml`）每次 push/PR 跑後端 pytest ＋前端 `npm
 - [ ] **N1 部署落地**（原 M5，優先序 1）——[docs/deployment.md](docs/deployment.md)
   - Vercel＋Neon 實際部署並驗證（重點：`foods_full.csv` 是否隨 api service 打包、首次 seed、冷啟動延遲）
   - 實機測試清單（手機輸入體驗、小螢幕排版、弱網）；開始累積真實資料（N4 的前置）
-- [ ] **N2 資料安全完備**（原 M7 剩餘）
-  - Alembic 遷移機制：上雲有真實資料後、第一次改 schema 前必裝（`create_all` 不會 ALTER 既有表）
-  - 自動備份：GitHub Actions 排程呼叫 `/api/export` 存 private repo／物件儲存（Neon restore point 為輔）
+- [ ] **N2 資料安全完備**（原 M7 剩餘）✅ 程式碼完成（2026-11-25），備份待一次性設定
+  - [x] Alembic 遷移機制：`init_db` 版本感知（新庫 create_all＋stamp、舊庫 stamp、其餘 upgrade head）；初始遷移檔入版控；往後改 schema 走 `python -m alembic revision --autogenerate`
+  - [x] 自動備份：私有 repo 的 GitHub Actions 每日排程拉 `/api/export` 存 JSON（主 repo 公開、不放健康資料）——一次性設定步驟見 [docs/backup.md](docs/backup.md)（建私有 repo＋貼 workflow＋加 secret，三分鐘）
 - [ ] **N3 行動體驗**：PWA（manifest＋加到主畫面）；餐點早/午/晚欄位；餐點公克編輯；Dashboard 快捷飲水
 - [ ] **N4 ML 預測分析**（原 M6）：等 N1 累積 ≥2 週真實資料再動；Holt 先加預測區間，後考慮回歸／梯度提升（介面沿用 `/api/recommendations` 型別，模型在 `engine/` 背後熱插換）
 
