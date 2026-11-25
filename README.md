@@ -64,19 +64,17 @@ CI（`.github/workflows/ci.yml`）每次 push/PR 跑後端 pytest ＋前端 `npm
 - [x] **M4.5 上雲前置**（2026-11）：認證——Bearer token＋cookie session（`HIS_API_TOKEN`；設定頁登入一次，瀏覽器記住一年）；前端改版 Uniconsign 設計系統（深色模式）；`vercel.json` → Vercel Services 格式（前後端同域一次部署）
 - [x] **M6 前置**：Holt 線性外推——體重/體脂/肌肉量三指標預測（`/trend/weight?metric=`）
 - [x] **M7 前置**（2026-11-25）：全量匯出 `/api/export`（JSON 單檔／CSV ZIP）；**匯入還原 `/api/import`**（merge＝同日合併／replace＝整檔取代，冪等）；P0 修正——本地時區「今天」、食物搜尋 `ILIKE`（SQLite/Postgres 行為一致）、常數時間 token 比對
+- [x] **N1 部署落地**（原 M5，2026-11-25）：Vercel Services＋Neon Postgres 上線（https://health-inbody-system.vercel.app）——health／前端／認證／seed（2,085 項）全驗證；部署日除錯歸檔於 [docs/deployment.md](docs/deployment.md) 疑難排解紀錄
+- [x] **N1.5 認證升級**（2026-11-25，部署日痛點促成）：cookie session 登入（`/api/auth/login` 核發 HttpOnly cookie、效期一年，設定頁登入一次）＋ Bearer 並行；冷啟動防護 `pool_pre_ping`
+- [x] **N2 資料安全完備**（原 M7 剩餘，2026-11-25）：Alembic 遷移接入（`init_db` 版本感知；改 schema 走 `python -m alembic revision --autogenerate`）；每日自動備份——AES-256 加密快照進本 repo `backups/`（180 天保留，[docs/backup.md](docs/backup.md)），已端到端驗證
 
-**進行中與下一步 · Next（2026-11 盤點後的優先序）**
+**進行中與下一步 · Next**
 
-- [ ] **N1 部署落地**（原 M5，優先序 1）——[docs/deployment.md](docs/deployment.md)
-  - Vercel＋Neon 實際部署並驗證（重點：`foods_full.csv` 是否隨 api service 打包、首次 seed、冷啟動延遲）
-  - 實機測試清單（手機輸入體驗、小螢幕排版、弱網）；開始累積真實資料（N4 的前置）
-- [ ] **N2 資料安全完備**（原 M7 剩餘）✅ 程式碼完成（2026-11-25），備份待一次性設定
-  - [x] Alembic 遷移機制：`init_db` 版本感知（新庫 create_all＋stamp、舊庫 stamp、其餘 upgrade head）；初始遷移檔入版控；往後改 schema 走 `python -m alembic revision --autogenerate`
-  - [x] 自動備份：GitHub Actions 每日排程拉 `/api/export` → **AES-256 加密**後 commit 到本 repo `backups/`（個人健康紀錄不落明文；金鑰在 GitHub secrets）——一次性設定（兩個 secrets）見 [docs/backup.md](docs/backup.md)
-- [ ] **N3 行動體驗**：PWA（manifest＋加到主畫面）；餐點早/午/晚欄位；餐點公克編輯；Dashboard 快捷飲水
-- [ ] **N4 ML 預測分析**（原 M6）：等 N1 累積 ≥2 週真實資料再動；Holt 先加預測區間，後考慮回歸／梯度提升（介面沿用 `/api/recommendations` 型別，模型在 `engine/` 背後熱插換）
+- [ ] **N3 行動體驗**：PWA（manifest＋加到主畫面）；餐點早/午/晚欄位與公克編輯；Dashboard 快捷飲水；份量表（常見份量↔公克，加速記錄）
+- [ ] **N4 ML 預測分析**（原 M6）：等線上累積 ≥2 週真實資料（2026-12-09 起）；Holt 先加預測區間，後考慮回歸／梯度提升（介面沿用 `/api/recommendations` 型別，模型在 `engine/` 背後熱插換）
+- 資料源補充按功能需求拉：微量營養（食藥署原始檔欄位擴充＋DRIs）、條碼掃描（Open Food Facts）、裝置整合（實測活動量校正 TDEE）
 
-> 相依性：N1 先落地才有真實資料（N4 前置）；N2 的 Alembic 在第一次 production schema 變更前完成即可；匯入 API 已就緒——部署前建議先做一次本機匯出備份。
+> N1/N2 已於 2026-11-25 收工；下一步＝日常使用累積資料，N3 隨時可開工，N4 等資料。
 
 ## 📄 Sources · 資料來源
 

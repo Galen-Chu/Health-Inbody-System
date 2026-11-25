@@ -1,21 +1,22 @@
-# 部署規劃 · Deployment Plan (M5)
+# 部署 · Deployment（N1 ✅ 已上線）
 
 > 目標：把 Health-Inbody-System 部署到雲端，開始實機日常使用。
-> 本文件是 M5（現 N1）的決策與執行清單——部署前逐項確認。
 >
-> **狀態（2026-11-25）**：決策已定——平台 Vercel＋Neon、防護方案 B（token，
-> 已強化為常數時間比對）、DB 走 Neon Postgres。`vercel.json` 已備妥，
-> **但尚未實際 deploy 驗證**。匯出＋匯入 API 已完成——**部署前建議先在本機
-> 做一次全量匯出備份**（設定頁「下載 JSON」）。
+> **狀態（2026-11-25 · N1 完成並驗證）**：線上網址
+> **https://health-inbody-system.vercel.app**（Vercel Services＋Neon Postgres）。
+> 已驗證：`/api/health`、前端 serve、認證（cookie session 登入）、
+> `foods_full.csv` 打包與 seed（2,085 項，搜尋「雞胸肉」實測）、
+> 匯出/匯入、Alembic 首次標記、每日加密備份端到端。
+> 桌機日常流程通；手機實機清單待補（見下方）。
 
 ## 現況（已就緒）
 
 - **單容器建置**：`Dockerfile` 多階段（前端 dist → 後端 serve），`docker compose up --build` 一鍵跑
 - **設定介面**：環境變數 `HIS_DB_URL`（換 DB 不改碼）、`HIS_HOST`／`HIS_PORT`
 - **健康檢查**：`GET /api/health`（可接平台的監控）
-- **CI**：push 即跑 67 項後端測試＋前端 lint/test/build
+- **CI**：push 即跑 81 項後端測試＋前端 lint/test/build
 
-## 決策 1：平台（待選定）
+## 決策 1：平台 ✅ 已選定並上線：Vercel＋Neon
 
 | 候選 | 月費 | 優點 | 注意 |
 |---|---|---|---|
@@ -33,7 +34,7 @@
 
 - [ ] **方案 A（最快）**：平台層防護——Fly.io/Render 無內建；搭配 Cloudflare Access（免費方案可擋在源站前）或 reverse proxy（Caddy basic auth）
 - [x] **方案 B**：✅ **已實作（2026-11-06，2026-11-25 強化）**——認證走 Bearer header **或** `his_session` cookie（`/api/auth/login` 核發，HttpOnly、效期一年；常數時間比對 `secrets.compare_digest`；`/api/health` 保持開放供平台探活）。前端「設定」頁登入一次即可，token 由 cookie 保存、不依賴 localStorage。未設定環境變數＝本機開放模式，開發體驗不變。之後有需要再疊 A
-- 建議：上雲時只需在平台環境變數設定 HIS_API_TOKEN
+- 建議：上雲時在平台環境變數設定 `HIS_API_TOKEN`，使用者到設定頁**登入一次**即可（cookie 保存一年）
 
 ## 決策 3：資料持久化
 
@@ -48,9 +49,9 @@
 
 - [ ] 手機瀏覽器：每日記錄輸入體驗（食物搜尋、公克、六大類）
 - [ ] 量測輸入與趨勢圖讀取（小螢幕排版）
-- [ ] 桌機日常流程：設定 → 記錄 → Dashboard 建議
-- [ ] 弱網/離線行為：目前無 PWA/離線支援——記錄痛點，作為 M5 追加或 M6 前置
-- [ ] 資料累積：實際使用 ≥2 週後回頭檢視 M6 的資料量是否足夠建模
+- [x] 桌機日常流程：設定 → 記錄 → Dashboard 建議（2026-11-25 驗證）
+- [ ] 弱網/離線行為：目前無 PWA/離線支援——記錄痛點，作為 N3 項目
+- [ ] 資料累積：實際使用 ≥2 週後回頭檢視 N4 的資料量是否足夠建模（2026-12-09 起）
 
 ## Vercel＋Neon 部署步驟（repo 已備妥設定檔）
 
@@ -69,14 +70,11 @@ service，其餘路徑交給前端 service。Python 依賴由 `backend/requireme
    - `HIS_DB_URL`＝Neon 連線字串
    - `HIS_API_TOKEN`＝自訂強 token（方案 B 已實作）
 3. 頁面最底部 **Deploy** → 完成後開 `<網址>/api/health` 驗證 →
-   前端「設定」頁填入同一組 token
+   前端「設定」頁用同一組 token **登入**（cookie session）
 4. 之後 push 到 main 自動重新部署
 
-> 注意：首次冷啟動會自動 seed 2,085 筆食物到 Postgres（約 1-2 秒）。
-> Services 打包理論上會帶到 `backend/data/`，但未經實際 deploy 驗證——
-> 若 API 500 且 log 顯示找不到 `foods_full.csv`，到
-> [Issue #1](https://github.com/Galen-Chu/Health-Inbody-System/issues/1) 回報，
-> 需在 api service 補檔案打包設定。
+> ✅ 打包疑慮已排除（2026-11-25 實測）：Services 會帶到 `backend/data/`，
+> 首次冷啟動自動 seed 2,085 筆食物到 Postgres，搜尋正常。
 
 ### 路徑二：CLI 部署（在 PowerShell 依序執行）
 
@@ -107,9 +105,20 @@ vercel --prod
 兩條路徑擇一即可，結果相同；CLI 部署完終端機會印出網址，
 驗證方式同路徑一步驟 3。
 
-## 部署步驟（平台���定後）
+## 疑難排解紀錄（2026-11-25 部署日歸檔）
 
-1. （方案 B）加 token middleware ＋ 前端帶 token → 測試綠燈
-2. 平台建立 app（依所選平台文件），掛 volume、設環境變數
-3. 部署、`/api/health` 驗證、seed 確認（首次啟動自動載入 2,085 項食物）
-4. 手機加入主畫面書籤，開始實機測試清單
+首次上線當天踩過的坑，留檔備查：
+
+1. **環境變數改了沒生效**——Vercel 環境變數只在**部署時**注入；
+   改完必須 Redeploy（Deployments → 最新一筆 ⋯ → Redeploy）。
+   另注意同名變數可能因範圍（Production/Preview/Development）有多筆。
+2. **「token 跑掉」的真相**——token/cookie 跟著**網址（origin）**走：
+   主網域 `health-inbody-system.vercel.app` 與 Vercel 後台點開的
+   「部署網址」（`…-<hash>-<scope>.vercel.app`）是不同站、不共用儲存。
+   一律從主網域進（設定頁會顯示目前 origin 提醒）。
+   此痛點促成了 cookie session 登入（登入一次保存一年）。
+3. **間歇性 500**——Neon 免費版閒置休眠，冷喚醒期間的 stale connection
+   會讓第一個請求 500（觀察到 `/api/metrics`）。已加 `pool_pre_ping`
+   防護；若再現，到 Deployments → 最新一筆 → **Logs** 抓 Python traceback。
+4. **看錯誤的方法**——Vercel → 專案 → Deployments → 點最新部署 → Logs
+   分頁，重整 app 觸發錯誤後會出現完整 traceback。
