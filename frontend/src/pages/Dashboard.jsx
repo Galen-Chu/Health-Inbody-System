@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client.js'
 import HexagonChart from '../components/HexagonChart.jsx'
+import localDateStr from '../lib/localDate.js'
 import IconCheck from '../icons/IconCheck.js'
 import IconExclamation from '../icons/IconExclamation.js'
 import IconLightning from '../icons/IconLightning.js'
@@ -43,7 +44,7 @@ export default function Dashboard() {
   const [hexIntake, setHexIntake] = useState({})
 
   useEffect(() => {
-    const todayStr = new Date().toISOString().slice(0, 10)
+    const todayStr = localDateStr()
     api.getMetrics()
       .then((m) => {
         if (!m.ready) { setNotReady(m.missing || []); return null }

@@ -1,11 +1,12 @@
 # 部署規劃 · Deployment Plan (M5)
 
 > 目標：把 Health-Inbody-System 部署到雲端，開始實機日常使用。
-> 本文件是 M5 的決策與執行清單——部署前逐項確認。
+> 本文件是 M5（現 N1）的決策與執行清單——部署前逐項確認。
 >
-> **狀態（2026-10-29）**：三項決策**待決並凍結**，追蹤於
-> [Issue #1](https://github.com/Galen-Chu/Health-Inbody-System/issues/1)；
-> M5 啟動時從該 issue 勾選起手，本文件即為執行手冊。
+> **狀態（2026-11-25）**：決策已定——平台 Vercel＋Neon、防護方案 B（token，
+> 已強化為常數時間比對）、DB 走 Neon Postgres。`vercel.json` 已備妥，
+> **但尚未實際 deploy 驗證**。匯出＋匯入 API 已完成——**部署前建議先在本機
+> 做一次全量匯出備份**（設定頁「下載 JSON」）。
 
 ## 現況（已就緒）
 
@@ -31,13 +32,15 @@
 系統目前**無認證**——上公網前至少要一層：
 
 - [ ] **方案 A（最快）**：平台層防護——Fly.io/Render 無內建；搭配 Cloudflare Access（免費方案可擋在源站前）或 reverse proxy（Caddy basic auth）
-- [x] **方案 B**：✅ **已實作（2026-11-06）**——FastAPI Bearer middleware（`HIS_API_TOKEN` 環境變數；`/api/health` 保持開放供平台探活；前端「設定」頁可填 token）。未設定環境變數＝本機開放模式，開發體驗不變。之後有需要再疊 A
-- 建議：~~M5 先做方案 B~~（已完成）；上雲時只需在平台環境變數設定 HIS_API_TOKEN
+- [x] **方案 B**：✅ **已實作（2026-11-06，2026-11-25 強化）**——FastAPI Bearer middleware（`HIS_API_TOKEN` 環境變數；常數時間比對 `secrets.compare_digest`；`/api/health` 保持開放供平台探活；前端「設定」頁可填 token）。未設定環境變數＝本機開放模式，開發體驗不變。之後有需要再疊 A
+- 建議：上雲時只需在平台環境變數設定 HIS_API_TOKEN
 
 ## 決策 3：資料持久化
 
-- [ ] **M5 最小版**：平台 volume 掛 `/app/data`＋`HIS_DB_URL=sqlite:////app/data/health_inbody.db`（docker-compose.yml 已開 volume）
-- [ ] **M7 完整版**：定期 `sqlite3 .dump` 備份到物件儲存/GitHub private repo；CSV 匯出 API；hosted Postgres 遷移評估（資料量大或要多裝置寫入才需要）
+- [x] **N1（Vercel 路線）**：改用 Neon Postgres（`HIS_DB_URL` 直換），無 volume 需求
+- [ ] **M5 最小版（Docker 路線）**：平台 volume 掛 `/app/data`＋`HIS_DB_URL=sqlite:////app/data/health_inbody.db`（docker-compose.yml 已開 volume）
+- [x] **匯出／匯出 API**（2026-11-25）：`GET /api/export`（JSON 單檔／CSV ZIP）＋ `POST /api/import`（merge／replace 還原）——設定頁有下載與匯入 UI
+- [ ] **N2 完整版**：自動備份（GitHub Actions 排程拉 `/api/export`）；Alembic 遷移（第一次改 schema 前必裝）
 
 ## 實機測試清單（部署後）
 

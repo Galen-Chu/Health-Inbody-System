@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client.js'
+import localDateStr from '../lib/localDate.js'
 import IconSearch from '../icons/IconSearch.js'
 import IconPlus from '../icons/IconPlus.js'
 import IconClose from '../icons/IconClose.js'
@@ -13,7 +14,7 @@ const GROUPS = [
 ]
 
 export default function DailyLog() {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localDateStr()
   const [date, setDate] = useState(today)
   const [servings, setServings] = useState({})
   const [waterMl, setWaterMl] = useState(0)

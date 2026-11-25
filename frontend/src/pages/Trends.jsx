@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client.js'
 import TrendChart from '../components/TrendChart.jsx'
+import localDateStr from '../lib/localDate.js'
 
 // 系列色＝Uniconsign 色階，經 dataviz 六項檢查驗證（見 global.css --chart-*）
 const SERIES = [
@@ -17,7 +18,7 @@ export default function Trends() {
   const [range, setRange] = useState('all')
   const [message, setMessage] = useState('')
   const [form, setForm] = useState({
-    measured_on: new Date().toISOString().slice(0, 10),
+    measured_on: localDateStr(),
     weight_kg: '', body_fat_pct: '', muscle_mass_kg: '',
   })
 
@@ -83,7 +84,7 @@ export default function Trends() {
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 8 }}>
         {SERIES.map(({ key, title, unit, color }) => {
           const cutoff = range === 'all' ? null
-            : new Date(Date.now() - Number(range) * 86400_000).toISOString().slice(0, 10)
+            : localDateStr(new Date(Date.now() - Number(range) * 86400_000))
           return (
             <TrendChart key={key} title={title} unit={unit} color={color}
               forecast={forecasts[key] || null}

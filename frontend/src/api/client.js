@@ -14,7 +14,9 @@ async function request(path, options = {}) {
     throw new Error('401 未授權：請到「設定」頁填入 API Token（部署端 HIS_API_TOKEN）')
   }
   if (!resp.ok) {
-    throw new Error(`API ${path}: ${resp.status}`)
+    let detail = ''
+    try { detail = (await resp.json())?.detail || '' } catch { /* 非 JSON 回應 */ }
+    throw new Error(`API ${path}: ${resp.status}${detail ? ` — ${detail}` : ''}`)
   }
   return resp.status === 204 ? null : resp.json()
 }
@@ -51,4 +53,7 @@ export const api = {
     a.click()
     URL.revokeObjectURL(url)
   },
+  // 資料匯入：還原 /api/export 的 JSON 備份（merge=同日合併 / replace=整檔取代）
+  importData: (data, mode = 'merge') =>
+    request(`/import?mode=${mode}`, { method: 'POST', body: JSON.stringify(data) }),
 }

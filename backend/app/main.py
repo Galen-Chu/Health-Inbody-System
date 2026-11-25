@@ -8,6 +8,7 @@ API under /api；若前端已建置（frontend/dist 存在）直接由後端 ser
 供平台健康檢查）。未設定＝開放（本機開發）。
 """
 import os
+import secrets
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -45,7 +46,9 @@ async def token_auth(request: Request, call_next):
     if expected and request.url.path.startswith("/api") \
             and request.url.path != "/api/health":
         auth = request.headers.get("Authorization", "")
-        if auth != f"Bearer {expected}":
+        # 常數時間比對（bytes 版對任意輸入皆安全），避免時序側通道
+        if not secrets.compare_digest(auth.encode("utf-8"),
+                                      f"Bearer {expected}".encode("utf-8")):
             return JSONResponse(
                 {"detail": "unauthorized — set Authorization: Bearer <token>"},
                 status_code=401)

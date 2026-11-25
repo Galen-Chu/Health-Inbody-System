@@ -21,6 +21,8 @@ export default function Settings() {
   const [profileMsg, setProfileMsg] = useState('')
   const [message, setMessage] = useState('')
   const [tokenMsg, setTokenMsg] = useState('')
+  const [importMode, setImportMode] = useState('merge')
+  const [importMsg, setImportMsg] = useState('')
   const retryTimer = useRef(null)
 
   const loadProfile = () => {
@@ -46,6 +48,23 @@ export default function Settings() {
     setTokenMsg(v ? '✓ 已儲存，自動重試連線…' : '已清除')
     clearTimeout(retryTimer.current)
     retryTimer.current = setTimeout(loadProfile, 600)
+  }
+
+  const onImportFile = async (e) => {
+    const file = e.target.files && e.target.files[0]
+    e.target.value = ''   // 清掉選擇，同一檔可立刻重選
+    if (!file) return
+    if (importMode === 'replace' &&
+        !window.confirm('取代模式會先清空現有的量測、每日記錄與餐點，再寫入備份內容。確定？')) {
+      return
+    }
+    try {
+      const data = JSON.parse(await file.text())
+      const r = await api.importData(data, importMode)
+      setImportMsg(`✓ 匯入完成：量測 ${r.body_metrics} 筆、每日記錄 ${r.daily_records} 筆、餐點 ${r.meals} 筆`)
+    } catch (err) {
+      setImportMsg(`⚠ 匯入失敗：${err.message || err}`)
+    }
   }
 
   const save = async () => {
@@ -115,6 +134,26 @@ export default function Settings() {
         {' '}
         <button onClick={() => api.exportData('csv').catch((e) => setTokenMsg(`⚠ ${e}`))}
           className="btn btn-secondary"><IconOpen size={16} /> 下載 CSV (ZIP)</button>
+      </div>
+
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>資料匯入 Data Import</h3>
+        <p className="hint">
+          還原上方「下載 JSON」產生的備份檔。<b>合併</b>＝備份內出現的日期覆蓋現有同日資料，其他日期不動；
+          <b>取代</b>＝清空現有量測／每日記錄／餐點後整檔寫入（食物資料庫不受影響）。兩種模式皆可重複執行。
+        </p>
+        <div className="form-inline">
+          <select className="select" style={{ width: 110 }} value={importMode}
+            aria-label="匯入模式" onChange={(e) => setImportMode(e.target.value)}>
+            <option value="merge">合併</option>
+            <option value="replace">取代</option>
+          </select>
+          <input type="file" accept=".json,application/json" className="input"
+            style={{ maxWidth: 280 }} aria-label="備份檔" onChange={onImportFile} />
+          {importMsg && (
+            <span className={importMsg.startsWith('⚠') ? 'msg-err' : 'msg-ok'}>{importMsg}</span>
+          )}
+        </div>
       </div>
     </div>
   )

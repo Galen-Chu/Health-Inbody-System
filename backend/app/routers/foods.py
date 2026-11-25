@@ -69,10 +69,10 @@ def search_foods(
     limit: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    """食物搜尋（名稱模糊比對，可限六大類）."""
+    """食物搜尋（名稱模糊比對，可限六大類；ILIKE＝SQLite/Postgres 大小寫行為一致）."""
     stmt = select(Food)
     if q:
-        stmt = stmt.where(Food.name.like(f"%{q}%"))
+        stmt = stmt.where(Food.name.ilike(f"%{q}%"))
     if category:
         if category not in VALID_CATEGORIES:
             raise HTTPException(422, f"unknown category: {category}")

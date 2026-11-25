@@ -3,8 +3,8 @@ import json
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -205,3 +205,75 @@ def export_data(format: str = "json", db: Session = Depends(get_db)):
             headers={"Content-Disposition": 'attachment; filename="his_export.zip"'})
 
     raise HTTPException(422, f"unknown format: {format} (json|csv)")
+
+
+@router.post("/import")
+def import_data(payload: dict = Body(...),
+                mode: str = Query(default="merge", pattern="^(merge|replace)$"),
+                db: Session = Depends(get_db)):
+    """還原 /api/export?format=json 的備份（冪等——同一檔重複匯入結果相同）.
+
+    mode=merge（預設）：profile 覆寫；三表以「日期」為單位合併——備份中出現
+    的日期取代現有同日資料（同每日 upsert 模型），未出現的日期不動。
+    mode=replace：清空量測/每日記錄/餐點三表後整檔寫入；食物資料庫不動。
+    """
+    if not any(k in payload for k in ("profile", "body_metrics", "meals", "daily_records")):
+        raise HTTPException(422, "不是 /api/export 的備份檔——缺少 profile/body_metrics/meals/daily_records")
+
+    def _d(v):
+        try:
+            return v if isinstance(v, date) else date.fromisoformat(str(v))
+        except ValueError:
+            raise HTTPException(422, f"備份檔內有無效日期：{v}")
+
+    if mode == "replace":
+        for table in (MealEntry, DailyRecord, BodyMetric):
+            db.execute(delete(table))
+
+    if payload.get("profile"):
+        profile = _ensure_profile(db)
+        for col in profile.__table__.columns:
+            if col.name != "id" and col.name in payload["profile"]:
+                setattr(profile, col.name, payload["profile"][col.name])
+
+    counts = {"body_metrics": 0, "daily_records": 0, "meals": 0, "days_overwritten": 0}
+    for row in payload.get("body_metrics") or []:
+        metric = db.scalar(select(BodyMetric)
+                           .where(BodyMetric.measured_on == _d(row["measured_on"])))
+        if metric is None:
+            metric = BodyMetric(measured_on=_d(row["measured_on"]))
+            db.add(metric)
+        for f in ("weight_kg", "body_fat_pct", "muscle_mass_kg"):
+            if f in row:
+                setattr(metric, f, row[f])
+        counts["body_metrics"] += 1
+
+    for row in payload.get("daily_records") or []:
+        record = db.scalar(select(DailyRecord)
+                           .where(DailyRecord.record_date == _d(row["record_date"])))
+        if record is None:
+            record = DailyRecord(record_date=_d(row["record_date"]))
+            db.add(record)
+        for f in ("servings", "water_ml", "note"):
+            if f in row:
+                setattr(record, f, row[f])
+        counts["daily_records"] += 1
+
+    meal_rows = payload.get("meals") or []
+    if mode == "merge" and meal_rows:
+        # 餐點無自然唯一鍵（同日多筆）→ 以日期為單位整段換掉，與 upsert 模型一致
+        days = {str(r["record_date"]) for r in meal_rows}
+        for d in days:
+            db.execute(delete(MealEntry).where(MealEntry.record_date == _d(d)))
+        counts["days_overwritten"] = len(days)
+    for row in meal_rows:
+        db.add(MealEntry(
+            record_date=_d(row["record_date"]), meal=row.get("meal", "any"),
+            food_id=row.get("food_id"), food_name=row.get("food_name", ""),
+            grams=row.get("grams", 0), calories_kcal=row.get("calories_kcal", 0),
+            water_g=row.get("water_g", 0), protein_g=row.get("protein_g", 0),
+            carb_g=row.get("carb_g", 0), fat_g=row.get("fat_g", 0)))
+        counts["meals"] += 1
+
+    db.commit()
+    return {"mode": mode, **counts}

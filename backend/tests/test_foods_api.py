@@ -23,6 +23,17 @@ def test_food_search_bad_category():
     assert client.get("/api/foods", params={"category": "junk"}).status_code == 422
 
 
+def test_food_search_case_insensitive_ascii():
+    """名稱含英字的項目（如「雞蛋(高DHA)」）大小寫皆可搜到.
+
+    用 ILIKE 而非 LIKE：SQLite 兩者都不分大小寫，但 Postgres 的 LIKE 分——
+    上 Neon 後行為必須一致。
+    """
+    lower = {f["id"] for f in client.get("/api/foods", params={"q": "dha"}).json()}
+    upper = {f["id"] for f in client.get("/api/foods", params={"q": "DHA"}).json()}
+    assert lower and lower == upper
+
+
 def _first_food(q: str) -> dict:
     return client.get("/api/foods", params={"q": q}).json()[0]
 
