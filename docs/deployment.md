@@ -42,7 +42,7 @@
 - [x] **匯出／匯出 API**（2026-11-25）：`GET /api/export`（JSON 單檔／CSV ZIP）＋ `POST /api/import`（merge／replace 還原）——設定頁有下載與匯入 UI
 - [x] **N2 完整版**（2026-11-25）：
   - Alembic 遷移已接入——`init_db` 冷啟動自動處理（既有 Neon 庫首次會 stamp head，之後 upgrade）
-  - 自動備份已就緒：在**私有 repo**設定每日排程（步驟見 [backup.md](backup.md)；主 repo 公開，不放健康資料）
+  - 自動備份已就緒：`.github/workflows/backup.yml` 每日排程，匯出後 **AES-256 加密**才進本 repo（個人健康紀錄不落明文；設定兩個 secrets 即啟用——見 [backup.md](backup.md)）
 
 ## 實機測試清單（部署後）
 

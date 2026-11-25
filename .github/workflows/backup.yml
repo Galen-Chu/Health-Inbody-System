@@ -1,0 +1,56 @@
+name: Daily Backup
+
+# N2 自動備份：每天拉線上 /api/export 全量資料，加密後 commit 到本 repo。
+# 本 repo 為公開——個人健康紀錄以 AES-256 加密儲存，金鑰只在 GitHub secrets。
+# 需要兩個 repo secrets（Settings → Secrets and variables → Actions）：
+#   HIS_API_TOKEN ＝ Vercel 環境變數同一組值（API 認證）
+#   BACKUP_KEY    ＝自訂 32-byte base64 金鑰（加解密用；遺失＝備份失效，務必另存一份）
+
+on:
+  schedule:
+    - cron: "17 21 * * *"   # UTC 21:17 ＝ 台灣每天 05:17
+  workflow_dispatch:          # Actions 分頁可手動觸發
+
+permissions:
+  contents: write
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prune backups older than 180 days
+        run: find backups -name 'his_backup_*.json.enc' -mtime +180 -delete || true
+
+      - name: Pull and encrypt today's export
+        env:
+          API_BASE: https://health-inbody-system.vercel.app
+          HIS_API_TOKEN: ${{ secrets.HIS_API_TOKEN }}
+          BACKUP_KEY: ${{ secrets.BACKUP_KEY }}
+        run: |
+          mkdir -p backups
+          curl -sf -H "Authorization: Bearer $HIS_API_TOKEN" \
+            "$API_BASE/api/export?format=json" -o his_export.json
+          openssl enc -aes-256-cbc -pbkdf2 \
+            -in his_export.json \
+            -out "backups/his_backup_$(date -u +%F).json.enc" \
+            -pass env:BACKUP_KEY
+          rm his_export.json
+          ls -la backups/
+
+      - name: Commit and push
+        run: |
+          git config user.name "backup-bot"
+          git config user.email "backup-bot@users.noreply.github.com"
+          git add backups
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            git commit -m "chore: backup $(date -u +%F)"
+            git push
+          fi
