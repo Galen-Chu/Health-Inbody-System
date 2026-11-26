@@ -80,6 +80,7 @@ CI（`.github/workflows/ci.yml`）每次 push/PR 跑後端 pytest ＋前端 `npm
 **進行中與下一步 · Next**
 
 - [ ] **N4 ML 預測分析**（原 M6）：等線上累積 ≥2 週真實資料（2026-12-09 起）；Holt 先加預測區間，後考慮回歸／梯度提升（介面沿用 `/api/recommendations` 型別，模型在 `engine/` 背後熱插換）
+- [ ] **FHIR 介接**（評估完成 2026-11-26，暫緩開發）：R4 匯出介面（Patient/Observation/Goal Bundle）→ SMART on FHIR → 診所試點三階段路線——對映表、架構與法規注意事項見 [docs/fhir-integration.md](docs/fhir-integration.md)
 - 資料源補充按功能需求拉：微量營養（食藥署原始檔欄位擴充＋DRIs）、條碼掃描（Open Food Facts）、裝置整合（實測活動量校正 TDEE）
 
 > N1/N2（2026-11-25）、N3（2026-11-26）已收工；下一步＝日常使用累積資料，N4 等 2026-12-09 資料期滿。
