@@ -159,6 +159,12 @@ def _day_context(db: Session, day: date):
     from app.routers.api import _ensure_profile
     from app.engine import bmr as bmr_engine, tdee as tdee_engine
     profile = _ensure_profile(db)
+    # 個人資料未填齊 → 明確 422（與 /metrics 的 not-ready 同精神，不靜默算出垃圾目標）
+    missing = [f for f in ("height_cm", "weight_kg", "age") if not getattr(profile, f)]
+    if profile.sex not in ("male", "female"):
+        missing.append("sex")
+    if missing:
+        raise HTTPException(422, f"個人資料未填齊（缺 {', '.join(missing)}）——無法計算熱量目標")
     bmr = bmr_engine.calc_bmr(profile.weight_kg, profile.height_cm, profile.age,
                               profile.sex, profile.body_fat_pct or None)
     target = tdee_engine.calc_tdee(bmr, profile.activity, profile.goal)
@@ -166,6 +172,14 @@ def _day_context(db: Session, day: date):
     from app.models import DailyRecord
     record = db.scalar(select(DailyRecord).where(DailyRecord.record_date == day))
     return entries, record, profile, target
+
+
+@router.get("/six-groups/units")
+def six_group_units():
+    """六大類「每份量↔公克」換算（份量速選按鈕用；與引擎估算同源常數）."""
+    from app.engine.six_groups import GRAMS_PER_SERVING, GROUPS
+    return {key: {"label": zh, "unit": unit, "grams": GRAMS_PER_SERVING[key]}
+            for key, (zh, _en, unit) in GROUPS.items()}
 
 
 @router.get("/summary/{day}", response_model=DaySummary)

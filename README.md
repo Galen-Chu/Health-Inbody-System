@@ -70,11 +70,17 @@ CI（`.github/workflows/ci.yml`）每次 push/PR 跑後端 pytest ＋前端 `npm
 
 **進行中與下一步 · Next**
 
-- [ ] **N3 行動體驗**：PWA（manifest＋加到主畫面）；餐點早/午/晚欄位與公克編輯；Dashboard 快捷飲水；份量表（常見份量↔公克，加速記錄）
+- [ ] **N3 行動體驗**（前半批完成，2026-11-26）：
+  - [x] **PWA 安裝**：manifest＋品牌圖示（192/512 maskable＋iOS touch icon）——手機「加到主畫面」即獨立視窗 app
+  - [x] **份量速選**：選食物後出現「½/1/2 碗（份/杯/茶匙）」按鈕，公克自動帶入（單位與六大類估算同源，`GET /api/six-groups/units`）
+  - [x] **刪除型 API＋UI**：`DELETE /records/{日}`、`DELETE /body-metrics/{日}`——每日記錄與趨勢歷史可刪錯誤資料
+  - [x] **bundle 瘦身**：主題 icon 42KB→1KB，JS 222KB→183KB（−18%）
+  - [x] **API 健壯性**：summary/recommendations 在個人資料未填齊時回明確 422（原為靜默算垃圾值）
+  - [ ] 餐點早/午/晚欄位；餐點公克編輯；Dashboard 快捷飲水；離線容忍（較大工程，最後做）
 - [ ] **N4 ML 預測分析**（原 M6）：等線上累積 ≥2 週真實資料（2026-12-09 起）；Holt 先加預測區間，後考慮回歸／梯度提升（介面沿用 `/api/recommendations` 型別，模型在 `engine/` 背後熱插換）
 - 資料源補充按功能需求拉：微量營養（食藥署原始檔欄位擴充＋DRIs）、條碼掃描（Open Food Facts）、裝置整合（實測活動量校正 TDEE）
 
-> N1/N2 已於 2026-11-25 收工；下一步＝日常使用累積資料，N3 隨時可開工，N4 等資料。
+> N1/N2 已於 2026-11-25 收工；N3 前半批 2026-11-26 上線。
 
 ## 📄 Sources · 資料來源
 

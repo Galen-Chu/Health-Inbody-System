@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client.js'
 import localDateStr from '../lib/localDate.js'
+import portionChips from '../lib/portions.js'
 import IconSearch from '../icons/IconSearch.js'
 import IconPlus from '../icons/IconPlus.js'
 import IconClose from '../icons/IconClose.js'
@@ -28,6 +29,7 @@ export default function DailyLog() {
   const [grams, setGrams] = useState(100)
   const [meals, setMeals] = useState([])
   const [recents, setRecents] = useState([])
+  const [units, setUnits] = useState({})
   const [favorites, setFavorites] = useState(
     JSON.parse(localStorage.getItem('his_fav_foods') || '[]'))
 
@@ -54,6 +56,10 @@ export default function DailyLog() {
   }, [date])
 
   useEffect(() => {
+    api.getSixGroupUnits().then(setUnits).catch(() => {})
+  }, [])
+
+  useEffect(() => {
     if (query.trim().length < 1) { setResults([]); return }
     const timer = setTimeout(() => {
       api.searchFoods(query.trim()).then(setResults).catch(() => setResults([]))
@@ -64,6 +70,13 @@ export default function DailyLog() {
   const save = async () => {
     await api.saveRecord({ record_date: date, servings, water_ml: Number(waterMl) || 0, note })
     setMessage(`✓ 已儲存 ${date}`)
+  }
+
+  const removeRecord = async () => {
+    if (!window.confirm(`刪除 ${date} 的每日記錄（六大類/飲水/備註）？餐點不受影響。`)) return
+    await api.deleteRecord(date).catch((e) => { setMessage(`⚠ ${e.message || e}`); return })
+    setServings({}); setWaterMl(0); setNote('')
+    setMessage(`✓ 已刪除 ${date} 的記錄`)
   }
 
   const addMeal = async () => {
@@ -136,6 +149,8 @@ export default function DailyLog() {
 
         <div style={{ marginTop: 16 }}>
           <button onClick={save} className="btn btn-primary">儲存</button>
+          {' '}
+          <button onClick={removeRecord} className="btn btn-danger">刪除本日記錄</button>
           {message && <span className="msg-ok" style={{ marginLeft: 12 }}>{message}</span>}
         </div>
       </div>
@@ -180,6 +195,12 @@ export default function DailyLog() {
             <>
               <input type="number" min="1" className="input" style={{ width: 80 }} value={grams}
                 onChange={(e) => setGrams(e.target.value)} />
+              {portionChips(selected.category, units).map((c) => (
+                <button key={c.label} onClick={() => setGrams(c.grams)}
+                  className="btn btn-secondary btn-sm" title={c.hint}>
+                  {c.label}
+                </button>
+              ))}
               <span className="hint">g ≈ {Math.round(selected.calories_kcal_per_100g * grams / 100)} kcal</span>
               <button onClick={addMeal} className="btn btn-primary btn-sm">
                 <IconPlus size={15} /> 加入

@@ -101,6 +101,57 @@ def test_body_metrics_roundtrip():
     assert items[0]["measured_on"] >= items[-1]["measured_on"]
 
 
+def test_delete_record():
+    day = "2027-04-01"
+    client.post("/api/records", json={
+        "record_date": day, "servings": {"grains": 1}, "water_ml": 500})
+    assert client.delete(f"/api/records/{day}").status_code == 204
+    assert client.get(f"/api/records/{day}").status_code == 404
+    assert client.delete(f"/api/records/{day}").status_code == 404   # 再刪 → 404
+
+
+def test_delete_body_metric():
+    day = "2027-04-02"
+    client.post("/api/body-metrics", json={
+        "measured_on": day, "weight_kg": 70.0})
+    assert client.delete(f"/api/body-metrics/{day}").status_code == 204
+    left = [m for m in client.get("/api/body-metrics").json()
+            if m["measured_on"] == day]
+    assert left == []
+    assert client.delete(f"/api/body-metrics/{day}").status_code == 404
+
+
+def test_summary_422_when_profile_incomplete():
+    """個人資料未填齊 → summary/recommendations 明確 422，不靜默算垃圾目標."""
+    from sqlalchemy import select
+
+    from app.db import SessionLocal
+    from app.models import Profile
+
+    db = SessionLocal()
+    profile = db.scalar(select(Profile).where(Profile.id == 1)) or Profile(id=1)
+    saved = {f: getattr(profile, f) for f in
+             ("sex", "height_cm", "weight_kg", "age", "body_fat_pct")}
+    profile.sex = ""
+    profile.height_cm = 0
+    db.add(profile)
+    db.commit()
+    db.close()
+
+    try:
+        for path in ("/api/summary/2027-04-03", "/api/recommendations/2027-04-03"):
+            resp = client.get(path)
+            assert resp.status_code == 422
+            assert "個人資料未填齊" in resp.json()["detail"]
+    finally:   # 共用 DB：還原，不影響其他測試
+        db = SessionLocal()
+        profile = db.scalar(select(Profile).where(Profile.id == 1))
+        for f, v in saved.items():
+            setattr(profile, f, v)
+        db.commit()
+        db.close()
+
+
 class TestExport:
     def test_export_json_full_structure(self):
         resp = client.get("/api/export")

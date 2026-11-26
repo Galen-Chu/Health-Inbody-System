@@ -32,8 +32,11 @@ export const api = {
   getMetrics: () => request('/metrics'),
   getRecords: (params = '') => request(`/records${params}`),
   saveRecord: (record) => request('/records', { method: 'POST', body: JSON.stringify(record) }),
+  deleteRecord: (day) => request(`/records/${day}`, { method: 'DELETE' }),
   getBodyMetrics: () => request('/body-metrics'),
   addBodyMetric: (m) => request('/body-metrics', { method: 'POST', body: JSON.stringify(m) }),
+  deleteBodyMetric: (day) => request(`/body-metrics/${day}`, { method: 'DELETE' }),
+  getSixGroupUnits: () => request('/six-groups/units'),
   // 食物資料庫與餐點
   searchFoods: (q, category = '') => request(`/foods?q=${encodeURIComponent(q)}${category ? `&category=${category}` : ''}`),
   addMeal: (meal) => request('/meals', { method: 'POST', body: JSON.stringify(meal) }),

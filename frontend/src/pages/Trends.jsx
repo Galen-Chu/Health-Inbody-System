@@ -53,6 +53,13 @@ export default function Trends() {
     load()
   }
 
+  const removeMetric = async (m) => {
+    if (!window.confirm(`刪除 ${m.measured_on} 的量測（${m.weight_kg}kg）？`)) return
+    await api.deleteBodyMetric(m.measured_on).catch((e) => { setMessage(`⚠ ${e.message || e}`); return })
+    setMessage(`✓ 已刪除 ${m.measured_on} 的量測`)
+    load()
+  }
+
   return (
     <div>
       <h2>身體組成趨勢 Body Trends</h2>
@@ -100,7 +107,7 @@ export default function Trends() {
         <div className="table-wrap">
           <table className="table">
             <thead><tr>
-              <th>日期</th><th className="num">體重 kg</th><th className="num">體脂 %</th><th className="num">肌肉量</th>
+              <th>日期</th><th className="num">體重 kg</th><th className="num">體脂 %</th><th className="num">肌肉量</th><th />
             </tr></thead>
             <tbody>
               {[...metrics].reverse().map((m) => (
@@ -109,6 +116,14 @@ export default function Trends() {
                   <td className="num">{m.weight_kg}</td>
                   <td className="num">{m.body_fat_pct ?? '—'}</td>
                   <td className="num">{m.muscle_mass_kg ?? '—'}</td>
+                  <td>
+                    <button
+                      onClick={() => removeMetric(m)}
+                      className="btn btn-danger btn-sm"
+                      aria-label={`刪除 ${m.measured_on} 的量測`}>
+                      ×
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

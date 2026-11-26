@@ -149,6 +149,17 @@ def get_record(record_date: date, db: Session = Depends(get_db)):
     return record
 
 
+@router.delete("/records/{record_date}", status_code=204)
+def delete_record(record_date: date, db: Session = Depends(get_db)):
+    """刪除某日的每日記錄（六大類/飲水/備註）——餐點另有 /meals 逐筆刪."""
+    record = db.scalar(select(DailyRecord)
+                       .where(DailyRecord.record_date == record_date))
+    if record is None:
+        raise HTTPException(404, "record not found")
+    db.delete(record)
+    db.commit()
+
+
 @router.post("/body-metrics", response_model=BodyMetricOut)
 def add_body_metric(data: BodyMetricIn, db: Session = Depends(get_db)):
     """新增量測；同日重複記錄視為修正（upsert），趨勢圖一日一點."""
@@ -169,6 +180,17 @@ def add_body_metric(data: BodyMetricIn, db: Session = Depends(get_db)):
 def list_body_metrics(db: Session = Depends(get_db)):
     return list(db.scalars(select(BodyMetric)
                            .order_by(BodyMetric.measured_on.desc()).limit(365)))
+
+
+@router.delete("/body-metrics/{measured_on}", status_code=204)
+def delete_body_metric(measured_on: date, db: Session = Depends(get_db)):
+    """刪除某日的量測（輸入錯誤日期時用；同日 upsert 只能改不能刪）."""
+    metric = db.scalar(select(BodyMetric)
+                       .where(BodyMetric.measured_on == measured_on))
+    if metric is None:
+        raise HTTPException(404, "body metric not found")
+    db.delete(metric)
+    db.commit()
 
 
 @router.get("/trend/weight")

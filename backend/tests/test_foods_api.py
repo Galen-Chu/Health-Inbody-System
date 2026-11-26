@@ -34,6 +34,13 @@ def test_food_search_case_insensitive_ascii():
     assert lower and lower == upper
 
 
+def test_six_group_units_endpoint():
+    data = client.get("/api/six-groups/units").json()
+    assert data["grains"] == {"label": "全榖雜糧類", "unit": "碗", "grams": 200.0}
+    assert data["protein"]["grams"] == 35.0
+    assert set(data) == {"grains", "protein", "dairy", "vegetables", "fruits", "oils"}
+
+
 def _first_food(q: str) -> dict:
     return client.get("/api/foods", params={"q": q}).json()[0]
 
