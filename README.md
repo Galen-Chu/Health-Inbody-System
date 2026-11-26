@@ -67,20 +67,21 @@ CI（`.github/workflows/ci.yml`）每次 push/PR 跑後端 pytest ＋前端 `npm
 - [x] **N1 部署落地**（原 M5，2026-11-25）：Vercel Services＋Neon Postgres 上線（https://health-inbody-system.vercel.app）——health／前端／認證／seed（2,085 項）全驗證；部署日除錯歸檔於 [docs/deployment.md](docs/deployment.md) 疑難排解紀錄
 - [x] **N1.5 認證升級**（2026-11-25，部署日痛點促成）：cookie session 登入（`/api/auth/login` 核發 HttpOnly cookie、效期一年，設定頁登入一次）＋ Bearer 並行；冷啟動防護 `pool_pre_ping`
 - [x] **N2 資料安全完備**（原 M7 剩餘，2026-11-25）：Alembic 遷移接入（`init_db` 版本感知；改 schema 走 `python -m alembic revision --autogenerate`）；每日自動備份——AES-256 加密快照進本 repo `backups/`（180 天保留，[docs/backup.md](docs/backup.md)），已端到端驗證
-
-**進行中與下一步 · Next**
-
-- [ ] **N3 行動體驗**（前半批完成，2026-11-26）：
+- [x] **N3 行動體驗** ✅ **完成（2026-11-26）**：
   - [x] **PWA 安裝**：manifest＋品牌圖示（192/512 maskable＋iOS touch icon）——手機「加到主畫面」即獨立視窗 app
   - [x] **份量速選**：選食物後出現「½/1/2 碗（份/杯/茶匙）」按鈕，公克自動帶入（單位與六大類估算同源，`GET /api/six-groups/units`）
   - [x] **刪除型 API＋UI**：`DELETE /records/{日}`、`DELETE /body-metrics/{日}`——每日記錄與趨勢歷史可刪錯誤資料
-  - [x] **bundle 瘦身**：主題 icon 42KB→1KB，JS 222KB→183KB（−18%）
-  - [x] **API 健壯性**：summary/recommendations 在個人資料未填齊時回明確 422（原為靜默算垃圾值）
-  - [ ] 餐點早/午/晚欄位；餐點公克編輯；Dashboard 快捷飲水；離線容忍（較大工程，最後做）
+  - [x] **餐點時段＋行內編輯**：新增餐點可選早/午/晚/點心；表格內 ✎ 直接改公克（營養快照等比換算，`PATCH /meals/{id}`）與時段
+  - [x] **Dashboard 快捷飲水**：+250/+500 ml 一鍵記錄（同日 upsert，保留六大類與備註）
+  - [x] **離線容忍**：寫入操作離線/斷網時進本機佇列（頂部橫幅顯示待同步筆數），恢復連線自動重送——records/量測為冪等 upsert、餐點依序附加，重送安全
+  - [x] **bundle 瘦身**：主題 icon 42KB→1KB；**API 健壯性**：個人資料未填齊時 summary/recommendations 回明確 422
+
+**進行中與下一步 · Next**
+
 - [ ] **N4 ML 預測分析**（原 M6）：等線上累積 ≥2 週真實資料（2026-12-09 起）；Holt 先加預測區間，後考慮回歸／梯度提升（介面沿用 `/api/recommendations` 型別，模型在 `engine/` 背後熱插換）
 - 資料源補充按功能需求拉：微量營養（食藥署原始檔欄位擴充＋DRIs）、條碼掃描（Open Food Facts）、裝置整合（實測活動量校正 TDEE）
 
-> N1/N2 已於 2026-11-25 收工；N3 前半批 2026-11-26 上線。
+> N1/N2（2026-11-25）、N3（2026-11-26）已收工；下一步＝日常使用累積資料，N4 等 2026-12-09 資料期滿。
 
 ## 📄 Sources · 資料來源
 

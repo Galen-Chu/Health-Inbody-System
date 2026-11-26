@@ -42,21 +42,24 @@ export default function Trends() {
 
   const submit = async () => {
     if (!form.weight_kg) { setMessage('⚠ 體重為必填'); return }
-    await api.addBodyMetric({
+    const r = await api.addBodyMetric({
       measured_on: form.measured_on,
       weight_kg: Number(form.weight_kg),
       body_fat_pct: form.body_fat_pct ? Number(form.body_fat_pct) : null,
       muscle_mass_kg: form.muscle_mass_kg ? Number(form.muscle_mass_kg) : null,
-    })
-    setMessage('✓ 已記錄量測')
+    }).catch((e) => { setMessage(`⚠ ${e.message || e}`); return null })
+    if (!r) return
     setForm({ ...form, weight_kg: '', body_fat_pct: '', muscle_mass_kg: '' })
+    setMessage(r.queued ? '離線中——量測已排隊，連線後自動同步' : '✓ 已記錄量測')
     load()
   }
 
   const removeMetric = async (m) => {
     if (!window.confirm(`刪除 ${m.measured_on} 的量測（${m.weight_kg}kg）？`)) return
-    await api.deleteBodyMetric(m.measured_on).catch((e) => { setMessage(`⚠ ${e.message || e}`); return })
-    setMessage(`✓ 已刪除 ${m.measured_on} 的量測`)
+    const r = await api.deleteBodyMetric(m.measured_on)
+      .catch((e) => { setMessage(`⚠ ${e.message || e}`); return null })
+    if (!r) return
+    setMessage(r.queued ? '離線中——刪除已排隊同步' : `✓ 已刪除 ${m.measured_on} 的量測`)
     load()
   }
 

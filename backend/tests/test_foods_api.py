@@ -80,6 +80,30 @@ def test_meal_delete():
     assert client.get(f"/api/summary/{day}").json()["meals"] == []
 
 
+def test_meal_patch_rescales_and_changes_meal_time():
+    chicken = _first_food("去皮雞胸肉")      # 104 kcal / 22.4g protein per 100g
+    day = "2027-05-01"
+    entry = client.post("/api/meals", json={
+        "record_date": day, "food_id": chicken["id"], "grams": 200,
+        "meal": "lunch"}).json()
+    assert entry["calories_kcal"] == 208.0
+
+    # 公克 200→100：快照等比減半
+    resp = client.patch(f"/api/meals/{entry['id']}", json={"grams": 100})
+    assert resp.status_code == 200
+    fixed = resp.json()
+    assert fixed["grams"] == 100
+    assert fixed["calories_kcal"] == 104.0
+    assert fixed["protein_g"] == 22.4
+
+    # 改時段
+    resp = client.patch(f"/api/meals/{entry['id']}", json={"meal": "dinner"})
+    assert resp.json()["meal"] == "dinner"
+    assert resp.json()["grams"] == 100          # 未動的欄位不變
+
+    assert client.patch("/api/meals/999999", json={"grams": 50}).status_code == 404
+
+
 def test_meal_unknown_food_404():
     resp = client.post("/api/meals", json={
         "record_date": "2026-10-29", "food_id": 999999, "grams": 100})

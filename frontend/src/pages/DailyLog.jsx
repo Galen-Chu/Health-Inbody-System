@@ -14,6 +14,12 @@ const GROUPS = [
   ['fruits', '水果類（份）'], ['oils', '油脂堅果（茶匙）'],
 ]
 
+const MEAL_TIMES = [
+  ['any', '不限'], ['breakfast', '早餐'], ['lunch', '午餐'],
+  ['dinner', '晚餐'], ['snack', '點心'],
+]
+const MEAL_LABEL = Object.fromEntries(MEAL_TIMES)
+
 export default function DailyLog() {
   const today = localDateStr()
   const [date, setDate] = useState(today)
@@ -27,7 +33,9 @@ export default function DailyLog() {
   const [results, setResults] = useState([])
   const [selected, setSelected] = useState(null)
   const [grams, setGrams] = useState(100)
+  const [mealTime, setMealTime] = useState('any')
   const [meals, setMeals] = useState([])
+  const [editing, setEditing] = useState(null)   // {id, grams, meal} 行內編輯
   const [recents, setRecents] = useState([])
   const [units, setUnits] = useState({})
   const [favorites, setFavorites] = useState(
@@ -68,28 +76,54 @@ export default function DailyLog() {
   }, [query])
 
   const save = async () => {
-    await api.saveRecord({ record_date: date, servings, water_ml: Number(waterMl) || 0, note })
-    setMessage(`✓ 已儲存 ${date}`)
+    const r = await api.saveRecord(
+      { record_date: date, servings, water_ml: Number(waterMl) || 0, note })
+      .catch((e) => { setMessage(`⚠ ${e.message || e}`); return null })
+    if (!r) return
+    setMessage(r.queued ? '離線中——已排隊，連線後自動同步' : `✓ 已儲存 ${date}`)
   }
 
   const removeRecord = async () => {
     if (!window.confirm(`刪除 ${date} 的每日記錄（六大類/飲水/備註）？餐點不受影響。`)) return
-    await api.deleteRecord(date).catch((e) => { setMessage(`⚠ ${e.message || e}`); return })
+    const r = await api.deleteRecord(date)
+      .catch((e) => { setMessage(`⚠ ${e.message || e}`); return null })
+    if (!r) return
     setServings({}); setWaterMl(0); setNote('')
-    setMessage(`✓ 已刪除 ${date} 的記錄`)
+    setMessage(r.queued ? '離線中——刪除已排隊同步' : `✓ 已刪除 ${date} 的記錄`)
   }
 
   const addMeal = async () => {
     if (!selected) return
-    await api.addMeal({ record_date: date, food_id: selected.id, grams: Number(grams) })
-    setMeals(await api.listMeals(date))
+    const entry = { record_date: date, food_id: selected.id, grams: Number(grams), meal: mealTime }
+    const r = await api.addMeal(entry).catch((e) => { setMessage(`⚠ ${e.message || e}`); return null })
+    if (!r) return
     setSelected(null); setQuery(''); setGrams(100)
+    if (r.queued) {
+      setMessage(`離線中——${selected.name} 已排隊，連線後自動同步`)
+      return
+    }
+    setMeals(await api.listMeals(date))
     setMessage(`✓ 已加入 ${selected.name} ${grams}g`)
   }
 
   const removeMeal = async (id) => {
     await api.deleteMeal(id)
     setMeals(await api.listMeals(date))
+  }
+
+  const saveEdit = async () => {
+    const r = await api.updateMeal(editing.id, {
+      grams: Number(editing.grams), meal: editing.meal,
+    }).catch((e) => { setMessage(`⚠ ${e.message || e}`); return null })
+    if (!r) return
+    if (r.queued) {
+      setMessage('離線中——修改已排隊同步')
+      setEditing(null)
+      return
+    }
+    setEditing(null)
+    setMeals(await api.listMeals(date))
+    setMessage('✓ 已修正餐點')
   }
 
   const estimateFromMeals = async () => {
@@ -193,6 +227,10 @@ export default function DailyLog() {
           </select>
           {selected && (
             <>
+              <select className="select" style={{ width: 90 }} value={mealTime}
+                aria-label="餐點時段" onChange={(e) => setMealTime(e.target.value)}>
+                {MEAL_TIMES.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+              </select>
               <input type="number" min="1" className="input" style={{ width: 80 }} value={grams}
                 onChange={(e) => setGrams(e.target.value)} />
               {portionChips(selected.category, units).map((c) => (
@@ -218,28 +256,58 @@ export default function DailyLog() {
           <div className="table-wrap" style={{ marginTop: 12 }}>
             <table className="table">
               <thead><tr>
-                <th>食物</th><th className="num">公克</th><th className="num">熱量</th>
+                <th>食物</th><th>時段</th><th className="num">公克</th><th className="num">熱量</th>
                 <th className="num">蛋白質</th><th className="num">碳水</th><th className="num">脂質</th><th />
               </tr></thead>
               <tbody>
                 {meals.map((m) => (
                   <tr key={m.id}>
                     <td>{m.food_name}</td>
-                    <td className="num">{m.grams}</td>
-                    <td className="num">{m.calories_kcal}</td>
-                    <td className="num">{m.protein_g}</td>
-                    <td className="num">{m.carb_g}</td>
-                    <td className="num">{m.fat_g}</td>
-                    <td>
-                      <button onClick={() => removeMeal(m.id)} className="btn btn-danger btn-sm"
-                        aria-label={`刪除 ${m.food_name}`}>
-                        <IconClose size={14} />
-                      </button>
-                    </td>
+                    {editing && editing.id === m.id ? (
+                      <>
+                        <td>
+                          <select className="select" style={{ width: 80 }} value={editing.meal}
+                            aria-label="編輯時段" onChange={(e) => setEditing({ ...editing, meal: e.target.value })}>
+                            {MEAL_TIMES.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                          </select>
+                        </td>
+                        <td className="num">
+                          <input type="number" min="1" className="input" style={{ width: 70 }}
+                            value={editing.grams}
+                            onChange={(e) => setEditing({ ...editing, grams: e.target.value })} />
+                        </td>
+                        <td colSpan={4} />
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          <button onClick={saveEdit} className="btn btn-primary btn-sm">存</button>{' '}
+                          <button onClick={() => setEditing(null)} className="btn btn-secondary btn-sm">取消</button>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td>{MEAL_LABEL[m.meal] || m.meal}</td>
+                        <td className="num">{m.grams}</td>
+                        <td className="num">{m.calories_kcal}</td>
+                        <td className="num">{m.protein_g}</td>
+                        <td className="num">{m.carb_g}</td>
+                        <td className="num">{m.fat_g}</td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          <button onClick={() => setEditing({ id: m.id, grams: m.grams, meal: m.meal || 'any' })}
+                            className="btn btn-secondary btn-sm" title="修正公克/時段"
+                            aria-label={`編輯 ${m.food_name}`}>
+                            ✎
+                          </button>{' '}
+                          <button onClick={() => removeMeal(m.id)} className="btn btn-danger btn-sm"
+                            aria-label={`刪除 ${m.food_name}`}>
+                            <IconClose size={14} />
+                          </button>
+                        </td>
+                      </>
+                    )}
                   </tr>
                 ))}
                 <tr className="total">
                   <td>合計</td>
+                  <td />
                   <td />
                   <td className="num">{Math.round(totalKcal)}</td>
                   <td colSpan={4} />

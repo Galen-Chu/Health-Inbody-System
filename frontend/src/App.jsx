@@ -10,6 +10,8 @@ import IconArrowUpRight from './icons/IconArrowUpRight.js'
 import IconFingerprint from './icons/IconFingerprint.js'
 import IconSun from './icons/IconSun.js'
 import IconMoon from './icons/IconMoon.js'
+import { rawFetch } from './api/client.js'
+import { flushQueue, isOnline, queueSize } from './lib/offline.js'
 
 const TABS = [
   { key: 'dashboard', label: '儀表板', icon: IconDashboard },
@@ -40,12 +42,57 @@ function useTheme() {
   return [theme, () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))]
 }
 
+// 離線容忍：橫幅顯示狀態；恢復連線自動重送本機佇列
+function useOffline() {
+  const [online, setOnline] = useState(isOnline())
+  const [pending, setPending] = useState(queueSize())
+  const [syncing, setSyncing] = useState(false)
+
+  useEffect(() => {
+    const onQueue = (e) => setPending(e.detail)
+    const goOnline = async () => {
+      setOnline(true)
+      setSyncing(true)
+      await flushQueue(rawFetch)
+      setSyncing(false)
+    }
+    const goOffline = () => setOnline(false)
+    window.addEventListener('his:queue', onQueue)
+    window.addEventListener('online', goOnline)
+    window.addEventListener('offline', goOffline)
+    return () => {
+      window.removeEventListener('his:queue', onQueue)
+      window.removeEventListener('online', goOnline)
+      window.removeEventListener('offline', goOffline)
+    }
+  }, [])
+
+  return { online, pending, syncing }
+}
+
 export default function App() {
   const [tab, go] = useTab()
   const [theme, toggleTheme] = useTheme()
+  const { online, pending, syncing } = useOffline()
 
   return (
     <div className="app-shell">
+      {!online && (
+        <div role="status" style={{
+          padding: '6px 16px', fontSize: 13, textAlign: 'center',
+          background: 'var(--color-status-warning)', color: '#fff',
+        }}>
+          離線中——記錄會先存在本機{pending > 0 ? `（待同步 ${pending} 筆）` : ''}，恢復連線後自動同步
+        </div>
+      )}
+      {online && syncing && (
+        <div role="status" style={{
+          padding: '6px 16px', fontSize: 13, textAlign: 'center',
+          background: 'var(--color-status-info)', color: '#fff',
+        }}>
+          連線恢復——正在同步待送記錄…
+        </div>
+      )}
       <header className="app-header">
         <span className="brand">
           <BrandLogoH size={28} title="Health Inbody System" />

@@ -38,6 +38,12 @@ class MealIn(BaseModel):
     meal: str = "any"
 
 
+class MealUpdate(BaseModel):
+    """餐點修正：公克（營養快照等比換算）與/或時段."""
+    grams: float | None = Field(default=None, gt=0, le=5000)
+    meal: str | None = None
+
+
 class MealOut(MealIn):
     id: int
     food_name: str
@@ -132,6 +138,24 @@ def delete_meal(entry_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "meal entry not found")
     db.delete(entry)
     db.commit()
+
+
+@router.patch("/meals/{entry_id}", response_model=MealOut)
+def update_meal(entry_id: int, data: MealUpdate, db: Session = Depends(get_db)):
+    """修正餐點：公克改動時營養快照按比例換算（線性，不失真）；亦可改時段."""
+    entry = db.get(MealEntry, entry_id)
+    if entry is None:
+        raise HTTPException(404, "meal entry not found")
+    if data.meal is not None:
+        entry.meal = data.meal
+    if data.grams is not None and data.grams != entry.grams:
+        ratio = data.grams / entry.grams
+        entry.grams = data.grams
+        for f in ("calories_kcal", "water_g", "protein_g", "carb_g", "fat_g"):
+            setattr(entry, f, round(getattr(entry, f) * ratio, 1))
+    db.commit()
+    db.refresh(entry)
+    return entry
 
 
 @router.get("/meals", response_model=list[MealOut])

@@ -42,6 +42,8 @@ export default function Dashboard() {
   const [recs, setRecs] = useState([])
   const [error, setError] = useState('')
   const [hexIntake, setHexIntake] = useState({})
+  const [todayRecord, setTodayRecord] = useState(null)
+  const [waterMsg, setWaterMsg] = useState('')
 
   useEffect(() => {
     const todayStr = localDateStr()
@@ -55,11 +57,32 @@ export default function Dashboard() {
             setSummary(s)
             setRecs(r.recommendations || [])
             const today = records.find((r2) => r2.record_date === todayStr) || null
+            setTodayRecord(today)
             setHexIntake(today?.servings || {})
           })
       })
       .catch((e) => setError(e.message || String(e)))
   }, [])
+
+  // 快捷飲水：同日 upsert——保留既有六大類與備註，只加水分
+  const addWater = async (ml) => {
+    const base = todayRecord || {}
+    const nextMl = (base.water_ml || 0) + ml
+    const r = await api.saveRecord({
+      record_date: localDateStr(),
+      servings: base.servings || {},
+      water_ml: nextMl,
+      note: base.note || '',
+    }).catch((e) => { setWaterMsg(`⚠ ${e.message || e}`); return null })
+    if (!r) return
+    setTodayRecord({ ...base, record_date: localDateStr(), water_ml: nextMl })
+    if (r.queued) {
+      setWaterMsg(`離線中——+${ml} ml 已排隊同步`)
+      return
+    }
+    setSummary((s) => (s ? { ...s, water_drink_ml: nextMl } : s))
+    setWaterMsg(`✓ +${ml} ml`)
+  }
 
   if (error) return <p className="msg-err">⚠ 載入失敗：{error}</p>
   if (notReady) {
@@ -104,6 +127,12 @@ export default function Dashboard() {
           <Progress label="水分（飲水＋食物）"
             value={summary.water_drink_ml + summary.water_from_food_ml}
             target={metrics.water_target_ml} unit="ml" />
+          <div className="form-inline" style={{ marginTop: 4 }}>
+            <span className="hint">快捷飲水</span>
+            <button onClick={() => addWater(250)} className="btn btn-secondary btn-sm">+250 ml</button>
+            <button onClick={() => addWater(500)} className="btn btn-secondary btn-sm">+500 ml</button>
+            {waterMsg && <span className={waterMsg.startsWith('⚠') ? 'msg-err' : 'msg-ok'}>{waterMsg}</span>}
+          </div>
           <p className="hint" style={{ marginBottom: 0 }}>
             巨量營養：蛋白質 {summary.macros.protein_g}g · 碳水 {summary.macros.carb_g}g · 脂質 {summary.macros.fat_g}g
           </p>

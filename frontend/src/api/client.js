@@ -1,16 +1,39 @@
 // 輕量 API client — 開發期走 Vite proxy，建置後同源
 // 認證：登入後的 his_session cookie（HttpOnly，瀏覽器自動帶）為主；
 // localStorage 的舊 token 僅在設定頁做一次性遷移（登入成功後清除）
+// 離線容忍：寫入操作離線/斷網時進本機佇列（lib/offline.js），連線後重送
+import { enqueue, isOnline } from '../lib/offline.js'
+
 function authHeaders() {
   const token = localStorage.getItem('his_api_token')
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-async function request(path, options = {}) {
-  const resp = await fetch(`/api${path}`, {
+export async function rawFetch(path, options = {}) {
+  return fetch(`/api${path}`, {
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     ...options,
   })
+}
+
+async function request(path, options = {}) {
+  const method = (options.method || 'GET').toUpperCase()
+
+  if (method !== 'GET' && !isOnline()) {
+    enqueue(path, options)
+    return { queued: true }
+  }
+
+  let resp
+  try {
+    resp = await rawFetch(path, options)
+  } catch {
+    if (method !== 'GET') {          // 斷網（非回應錯誤）→ 排隊
+      enqueue(path, options)
+      return { queued: true }
+    }
+    throw new Error('網路連線失敗（離線中？）')
+  }
   if (resp.status === 401) {
     throw new Error('401 未授權：請到「設定」頁登入（Token＝部署端 HIS_API_TOKEN）')
   }
@@ -40,6 +63,7 @@ export const api = {
   // 食物資料庫與餐點
   searchFoods: (q, category = '') => request(`/foods?q=${encodeURIComponent(q)}${category ? `&category=${category}` : ''}`),
   addMeal: (meal) => request('/meals', { method: 'POST', body: JSON.stringify(meal) }),
+  updateMeal: (id, patch) => request(`/meals/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   listMeals: (day) => request(`/meals?day=${day}`),
   deleteMeal: (id) => request(`/meals/${id}`, { method: 'DELETE' }),
   getSummary: (day) => request(`/summary/${day}`),
