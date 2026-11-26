@@ -11,8 +11,9 @@ Web rewrite of the 2024 tkinter side project（[ZZZChing-Wen-s-Side-Project](htt
 - **Body metrics** · 身體組成量測記錄（體重/體脂/肌肉量，InBody 風格趨勢）
 - **BMR / TDEE engine** · 有體脂走 Katch-McArdle，無體脂自動退回 Mifflin-St Jeor；活動量×目標（減脂/維持/增肌）算出每日熱量
 - **Six food groups** · 六大類食物份量（國民飲食指南 2018 熱量階梯），互動六邊形雷達圖顯示達成率
-- **Water tracking** · 每日飲水目標（35 ml/kg）＋記錄
-- **Daily log** · 每日六大類份量＋飲水＋備註，同日 upsert
+- **Water tracking** · 每日飲水目標（35 ml/kg）＋記錄（儀表板快捷 +250/+500 ml）
+- **Daily log** · 每日六大類份量＋飲水＋備註，同日 upsert；餐點時段（早/午/晚/點心）＋份量速選（½/1/2 碗·份·杯·茶匙）＋行內編輯
+- **Mobile & offline** · PWA（加到主畫面即獨立視窗）、離線佇列——斷網照常記錄，恢復連線自動同步
 - **Data portability** · 全量匯出（JSON／CSV ZIP）與匯入還原（同日合併／整檔取代）
 
 ## 🏗️ Architecture · 架構
