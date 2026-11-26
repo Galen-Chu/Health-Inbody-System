@@ -17,6 +17,7 @@ export default [
         setTimeout: 'readonly', clearTimeout: 'readonly',
         setInterval: 'readonly', clearInterval: 'readonly',
         URL: 'readonly', FormData: 'readonly',
+        navigator: 'readonly', CustomEvent: 'readonly',   // lib/offline.js
       },
     },
     settings: { react: { version: 'detect' } },
