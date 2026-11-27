@@ -136,56 +136,62 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <h2>今日攝取 vs 目標</h2>
-      {summary && (
-        <div className="card" style={{ maxWidth: 520 }}>
-          <Progress label="熱量" value={summary.calories_total} target={summary.calorie_target} unit="kcal" />
-          <Progress label="水分（飲水＋食物）"
-            value={summary.water_drink_ml + summary.water_from_food_ml}
-            target={metrics.water_target_ml} unit="ml" />
-          <div className="form-inline" style={{ marginTop: 4 }}>
-            <span className="hint">快捷飲水</span>
-            <button onClick={() => addWater(250)} className="btn btn-secondary btn-sm">+250 ml</button>
-            <button onClick={() => addWater(500)} className="btn btn-secondary btn-sm">+500 ml</button>
-            {waterMsg && <span className={waterMsg.startsWith('⚠') ? 'msg-err' : 'msg-ok'}>{waterMsg}</span>}
-          </div>
-          <p className="hint" style={{ marginBottom: 0 }}>
-            巨量營養：蛋白質 {summary.macros.protein_g}g · 碳水 {summary.macros.carb_g}g · 脂質 {summary.macros.fat_g}g
-          </p>
-        </div>
-      )}
-
-      <h2>今日建議 Recommendations</h2>
-      {recs.length > 0 ? (
-        <ul className="rec-list">
-          {recs.map((r, i) => {
-            const Icon = REC_ICON[r.level] || REC_ICON.info
-            return (
-              <li key={i} className={r.level === 'positive' ? 'positive' : ''}>
-                <span aria-hidden style={{ color: REC_ICON_COLOR[r.level] || REC_ICON_COLOR.info, flexShrink: 0 }}>
-                  <Icon size={20} />
-                </span>
-                <div>
-                  <div className="rec-zh">{r.zh}</div>
-                  <div className="rec-en">{r.en}</div>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
-      ) : <p className="empty">尚無建議（請先記錄今日飲食）。</p>}
-
       <h2>六大類達成率</h2>
-      <div className="card" style={{ display: 'flex', justifyContent: 'center' }}>
+      <div className="card" style={{ maxWidth: 520, margin: '0 auto', display: 'flex', justifyContent: 'center' }}>
         <HexagonChart
           targets={metrics.six_groups.servings}
           intake={hexIntake}
           labels={GROUP_LABELS}
         />
       </div>
-      <p className="hint">
+      <p className="hint" style={{ textAlign: 'center' }}>
         六大類份量依國民飲食指南（2018）熱量階梯 {metrics.six_groups.tier} kcal 建議。
       </p>
+
+      <div className="duo-grid">
+        <div>
+          <h2>今日攝取 vs 目標</h2>
+          {summary && (
+            <div className="card">
+              <Progress label="熱量" value={summary.calories_total} target={summary.calorie_target} unit="kcal" />
+              <Progress label="水分（飲水＋食物）"
+                value={summary.water_drink_ml + summary.water_from_food_ml}
+                target={metrics.water_target_ml} unit="ml" />
+              <div className="form-inline" style={{ marginTop: 4 }}>
+                <span className="hint">快捷飲水</span>
+                <button onClick={() => addWater(250)} className="btn btn-secondary btn-sm">+250 ml</button>
+                <button onClick={() => addWater(500)} className="btn btn-secondary btn-sm">+500 ml</button>
+                {waterMsg && <span className={waterMsg.startsWith('⚠') ? 'msg-err' : 'msg-ok'}>{waterMsg}</span>}
+              </div>
+              <p className="hint" style={{ marginBottom: 0 }}>
+                巨量營養：蛋白質 {summary.macros.protein_g}g · 碳水 {summary.macros.carb_g}g · 脂質 {summary.macros.fat_g}g
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <h2>今日建議 Recommendations</h2>
+          {recs.length > 0 ? (
+            <ul className="rec-list">
+              {recs.map((r, i) => {
+                const Icon = REC_ICON[r.level] || REC_ICON.info
+                return (
+                  <li key={i} className={r.level === 'positive' ? 'positive' : ''}>
+                    <span aria-hidden style={{ color: REC_ICON_COLOR[r.level] || REC_ICON_COLOR.info, flexShrink: 0 }}>
+                      <Icon size={20} />
+                    </span>
+                    <div>
+                      <div className="rec-zh">{r.zh}</div>
+                      <div className="rec-en">{r.en}</div>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          ) : <p className="empty">尚無建議（請先記錄今日飲食）。</p>}
+        </div>
+      </div>
     </div>
   )
 }
