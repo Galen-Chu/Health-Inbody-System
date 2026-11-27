@@ -45,7 +45,7 @@ export default function Dashboard() {
   const [todayRecord, setTodayRecord] = useState(null)
   const [waterMsg, setWaterMsg] = useState('')
 
-  useEffect(() => {
+  const load = () => {
     const todayStr = localDateStr()
     api.getMetrics()
       .then((m) => {
@@ -62,6 +62,22 @@ export default function Dashboard() {
           })
       })
       .catch((e) => setError(e.message || String(e)))
+  }
+
+  useEffect(() => { load() }, [])
+
+  // 即時反應：回到視窗/切回分頁自動重抓；離線佇列同步完成後刷新
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') load() }
+    const onQueue = (e) => { if (e.detail === 0) load() }
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    window.addEventListener('his:queue', onQueue)
+    return () => {
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+      window.removeEventListener('his:queue', onQueue)
+    }
   }, [])
 
   // 快捷飲水：同日 upsert——保留既有六大類與備註，只加水分

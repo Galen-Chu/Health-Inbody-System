@@ -105,16 +105,20 @@ export default function TrendChart({ title, unit, data = [], color, forecast = n
                 cy={py(f.value)} r="4" strokeWidth="2"
                 style={{ fill: SURFACE, stroke: color }} />
             ))}
-            <text x={W - M.right} y={py(forecast[forecast.length - 1].value) - 10}
+            {/* 預測值 y 夾限在繪圖區內——貼近上緣時不再被裁切 */}
+            <text x={W - M.right}
+              y={Math.min(Math.max(py(forecast[forecast.length - 1].value) - 10, M.top + 10), H - M.bottom - 6)}
               fontSize="10" textAnchor="end" style={{ fill: MUTED }}>預測 {fmt(forecast[forecast.length - 1].value)}{unit}</text>
           </>
         )}
-        {/* 端點標記：實心點＋2px 表面環＋端點值（文字用 ink，非系列色） */}
+        {/* 端點標記：實心點＋2px 表面環＋端點值（文字用 ink，非系列色；
+            右錨定於圖緣——起錨在點右側時長值會溢出 viewBox） */}
         <circle cx={px(histXs[histXs.length - 1])} cy={py(last.value)} r="4" strokeWidth="2"
           style={{ fill: color, stroke: SURFACE }} />
         {!forecastPath && (
-          <text x={px(histXs[histXs.length - 1]) + 8} y={py(last.value) + 3.5} fontSize="11"
-            fontWeight="600" style={{ fill: INK, fontVariantNumeric: 'tabular-nums' }}>
+          <text x={W - 2} y={Math.max(py(last.value) - 10, M.top + 9)} fontSize="11"
+            fontWeight="600" textAnchor="end"
+            style={{ fill: INK, fontVariantNumeric: 'tabular-nums' }}>
             {fmt(last.value)}{unit}
           </text>
         )}
