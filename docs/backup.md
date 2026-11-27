@@ -52,5 +52,7 @@ PowerShell 用戶也可直接用 Git 內附的 openssl：
 ## 調整
 
 - 備份時間：改 workflow 裡的 `cron`（UTC，台灣 −8 小時）
+- **排程延遲屬常態**：實測（2026-11-26/27）GitHub 排程固定延遲約 6 小時執行
+  （05:17 排 → 約 11:30 跑）——備份晚幾小時出現不用緊張；失敗才會寄通知
 - 保留天數：改 `Prune backups older than 180 days` 那行的數字
 - 失敗通知：GitHub 帳號預設會對 workflow 失敗寄信
